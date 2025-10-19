@@ -1,20 +1,32 @@
 {
     "compilerOptions": {
-        "target": "ESNext",
+        "target": "ES2022",
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
         "module": "ESNext",
-        "moduleResolution": "Node",
+        "moduleResolution": "Bundler",
+        "moduleDetection": "force",
+        "verbatimModuleSyntax": true,
         "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "useUnknownInCatchVariables": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "isolatedModules": true,
-        "allowJs": false,
+        "noEmit": true,
+        "resolveJsonModule": true,
         "types": [
             "vite/client"
         ]
     },
     "include": [
-        "src/**/*"
+        "src"
     ],
     "exclude": [
         "node_modules"
