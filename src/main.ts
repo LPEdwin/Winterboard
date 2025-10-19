@@ -71,7 +71,6 @@ async function loadLdrEnv(path: string) {
     scene.environment = envRT.texture;
     scene.background = tex;
 
-    tex.dispose();
     pmrem.dispose();
 }
 await loadLdrEnv('/hdri/rich_multi_nebulae_2k.png');
