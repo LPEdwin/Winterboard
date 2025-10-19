@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { loadGLB, buildPrefilteredRadianceMap } from "./loaders";
+import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
@@ -9,13 +10,16 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true;
 
-// Scene
+// Scene + Background
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+
+const backgroundMap = await new THREE.TextureLoader().loadAsync('/hdri/rich_multi_nebulae_2k.png');
+backgroundMap.colorSpace = THREE.SRGBColorSpace;
+scene.background = (await buildPrefilteredRadianceMap(backgroundMap, renderer)).texture;
 
 // Camera + controls
 const camera = new THREE.PerspectiveCamera(
@@ -36,44 +40,28 @@ controls.mouseButtons = {
 };
 
 // Lights
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
-scene.add(hemiLight);
+const radianceMap = await new HDRLoader().loadAsync('/hdri/kloppenheim_02_puresky_1k.hdr');
+scene.environment = (await buildPrefilteredRadianceMap(radianceMap, renderer)).texture;
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
 dirLight.position.set(-5, 10, -5);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(1024, 1024);
 scene.add(dirLight);
 
-// Loaders
-const gltfLoader = new GLTFLoader();
-const textureLoader = new THREE.TextureLoader();
 
-// === Utility functions ===
-async function loadGLB(url: string): Promise<THREE.Group> {
-    return new Promise((resolve, reject) => {
-        gltfLoader.load(
-            url,
-            (gltf) => resolve(gltf.scene),
-            undefined,
-            (err) => reject(err)
-        );
-    });
-}
-async function loadLdrEnv(path: string) {
-    const tex = await new THREE.TextureLoader().loadAsync(path);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
+// const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+// dirLight.position.set(-5, 10, -5);
+// dirLight.castShadow = true;
+// dirLight.shadow.mapSize.set(1024, 1024);
+// scene.add(dirLight);
 
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
+// const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+// scene.add(hemiLight);
 
-    const envRT = pmrem.fromEquirectangular(tex);
-    scene.environment = envRT.texture;
-    scene.background = tex;
+// const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+// scene.add(ambientLight);
 
-    pmrem.dispose();
-}
-await loadLdrEnv('/hdri/rich_multi_nebulae_2k.png');
 
 // === Board ===
 const boardSize = 8;
@@ -102,7 +90,12 @@ async function init() {
                 (z - boardSize / 2 + 0.5) * tileSize
             );
 
-            const mat = new THREE.MeshStandardMaterial();
+            const mat = new THREE.MeshStandardMaterial(
+                {
+                    metalness: 0.1,
+                    roughness: 0.4
+                }
+            );
             mat.color.copy((x + z) % 2 === 0 ? evenColor : oddColor);
             tile.material = mat;
             tile.name = `tile_${x}_${z}`;
@@ -111,6 +104,15 @@ async function init() {
         }
     }
 
+    // Shadow receiver
+    const shadowPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(boardSize * tileSize, boardSize * tileSize),
+        new THREE.ShadowMaterial({ opacity: 0.25 })
+    );
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
+
     // === Scar model ===
     const scar = scarModel.clone(true).children[0] as THREE.Mesh;
     scar.position.set(-0.1, 1, tileSize * 0.5);
@@ -118,7 +120,17 @@ async function init() {
     scar.receiveShadow = true;
     scene.add(scar);
 
-    // Card plane (texture)
+    const orange_mat = new THREE.MeshStandardMaterial({
+        color: 0xdd8437,
+        metalness: 0,
+        roughness: 0.2,
+    });
+    const orange_mat2 = new THREE.MeshPhongMaterial({
+        color: 0xdd8437,
+    });
+    scar.material = orange_mat;
+
+    // Card 
     const tex = await new THREE.TextureLoader().loadAsync("/models/Scar_Lion_King.png");
     tex.colorSpace = THREE.SRGBColorSpace;
 
@@ -133,7 +145,7 @@ async function init() {
         })
     );
 
-    // cancel parent's tiny scale so size is sane
+    // Cancel parent's tiny scale so size is sane
     const antiScale = new THREE.Group();
     const ws = new THREE.Vector3();
     scar.getWorldScale(ws);
@@ -145,20 +157,10 @@ async function init() {
     antiScale.position.set(0, -80, -200);
     card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
 
-    // Shadow receiver
-    const shadowPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(boardSize * tileSize, boardSize * tileSize),
-        new THREE.ShadowMaterial({ opacity: 0.25 })
-    );
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.receiveShadow = true;
-    scene.add(shadowPlane);
-
-    // === Highlight + movement ===
+    // === Interaction ===
     let highlighted: THREE.Mesh | null = null;
     let currentTarget: THREE.Vector3 | null = null;
     const MOVE_SPEED = 5;
-    const clock = new THREE.Clock();
 
     window.addEventListener("pointerdown", (event) => {
         if (event.button != 0)
@@ -174,7 +176,7 @@ async function init() {
         const intersects = raycaster.intersectObjects(tiles, false);
 
         if (intersects.length > 0) {
-            const picked = intersects[0].object as THREE.Mesh;
+            const picked = intersects[0]?.object as THREE.Mesh;
             currentTarget = picked.getWorldPosition(new THREE.Vector3());
             currentTarget.x += 0.4;
             currentTarget.y = scar.position.y;
@@ -187,8 +189,10 @@ async function init() {
         }
     });
 
-    // === Animation ===
-    function animate() {
+    // === Update ===
+    const clock = new THREE.Clock();
+
+    function Update() {
         const delta = clock.getDelta();
 
         if (currentTarget) {
@@ -206,9 +210,9 @@ async function init() {
 
         controls.update();
         renderer.render(scene, camera);
-        requestAnimationFrame(animate);
+        requestAnimationFrame(Update);
     }
-    animate();
+    Update();
 
     window.addEventListener("resize", () => {
         camera.aspect = window.innerWidth / window.innerHeight;
