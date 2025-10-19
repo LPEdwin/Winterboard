@@ -74,13 +74,17 @@ const selectedColor = new THREE.Color(0.2, 0.6, 1);
 
 // === Scene setup ===
 async function init() {
-
-    const boxModel = await loadGLB("/models/box.glb");
-    const scarModel = await loadGLB("/models/card_holder.glb");
+    const tile_mesh = (await loadGLB("/models/box.glb")).children[0]!;
 
     for (let x = 0; x < boardSize; x++) {
         for (let z = 0; z < boardSize; z++) {
-            const tile = boxModel.clone(true).children[0] as THREE.Mesh;
+            const mat = new THREE.MeshStandardMaterial(
+                {
+                    metalness: 0.1,
+                    roughness: 0.4
+                }
+            );
+            const tile = tile_mesh.clone() as THREE.Mesh;
             tile.scale.multiplyScalar(0.98);
             tile.castShadow = false;
             tile.receiveShadow = true;
@@ -90,12 +94,6 @@ async function init() {
                 (z - boardSize / 2 + 0.5) * tileSize
             );
 
-            const mat = new THREE.MeshStandardMaterial(
-                {
-                    metalness: 0.1,
-                    roughness: 0.4
-                }
-            );
             mat.color.copy((x + z) % 2 === 0 ? evenColor : oddColor);
             tile.material = mat;
             tile.name = `tile_${x}_${z}`;
@@ -113,9 +111,9 @@ async function init() {
     shadowPlane.receiveShadow = true;
     scene.add(shadowPlane);
 
-    // === Scar model ===
-    const scar = scarModel.clone(true).children[0] as THREE.Mesh;
-    scar.position.set(-0.1, 1, tileSize * 0.5);
+    // === Scar model ===    
+    const scar = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as THREE.Mesh;
+    scar.position.set(-0.1, 0.5, tileSize * 0.5);
     scar.castShadow = true;
     scar.receiveShadow = true;
     scene.add(scar);
@@ -125,9 +123,7 @@ async function init() {
         metalness: 0,
         roughness: 0.2,
     });
-    const orange_mat2 = new THREE.MeshPhongMaterial({
-        color: 0xdd8437,
-    });
+
     scar.material = orange_mat;
 
     // Card 
@@ -135,7 +131,7 @@ async function init() {
     tex.colorSpace = THREE.SRGBColorSpace;
 
     const card = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.2, 2.2),
+        new THREE.PlaneGeometry(3.34, 2.98),
         new THREE.MeshBasicMaterial({
             map: tex,
             transparent: true,
@@ -145,17 +141,12 @@ async function init() {
         })
     );
 
-    // Cancel parent's tiny scale so size is sane
-    const antiScale = new THREE.Group();
-    const ws = new THREE.Vector3();
-    scar.getWorldScale(ws);
-    antiScale.scale.set(1 / ws.x, 1 / ws.y, 1 / ws.z);
-
-    scar.add(antiScale);
-    antiScale.add(card);
-    card.scale.multiplyScalar(0.75);
-    antiScale.position.set(0, -80, -200);
+    card.scale.multiplyScalar(0.4);
+    card.position.z -= 0.75;
+    card.position.y -=0.25;
     card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
+
+    scar.add(card);
 
     // === Interaction ===
     let highlighted: THREE.Mesh | null = null;
