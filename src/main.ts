@@ -73,7 +73,6 @@ const tiles: THREE.Mesh[] = [];
 
 const evenColor = new THREE.Color(0.082, 0.509, 0.690);
 const oddColor = new THREE.Color(0.286, 0.851, 0.882);
-const selectedColor = new THREE.Color(0.2, 0.6, 1);
 
 // === Scene setup ===
 async function init() {
