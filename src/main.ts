@@ -115,17 +115,32 @@ async function init() {
     scene.add(scar);
 
     // Card plane (texture)
+    const tex = await new THREE.TextureLoader().loadAsync("/models/Scar_Lion_King.png");
+    tex.colorSpace = THREE.SRGBColorSpace;
+
     const card = new THREE.Mesh(
-        new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshStandardMaterial({
-            map: textureLoader.load("/models/Scar_Lion_King.png"),
+        new THREE.PlaneGeometry(2.2, 2.2),
+        new THREE.MeshBasicMaterial({
+            map: tex,
             transparent: true,
+            alphaTest: 0.05,
             side: THREE.DoubleSide,
+            depthWrite: false,   // avoid sorting artifacts
         })
     );
-    card.position.set(0.1, 0.6, 0);
-    scar.add(card);
 
+    // cancel parent's tiny scale so size is sane
+    const antiScale = new THREE.Group();
+    const ws = new THREE.Vector3();
+    scar.getWorldScale(ws);
+    antiScale.scale.set(1 / ws.x, 1 / ws.y, 1 / ws.z);
+
+    scar.add(antiScale);
+    antiScale.add(card);
+    card.scale.multiplyScalar(0.75);
+    antiScale.position.set(0, -80, -200);
+    card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
+  
     // Shadow receiver
     const shadowPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(boardSize * tileSize, boardSize * tileSize),
