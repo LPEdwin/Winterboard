@@ -72,7 +72,7 @@ const tileSize = 1;
 const tiles: THREE.Mesh[] = [];
 
 const evenColor = new THREE.Color(0.082, 0.509, 0.690).convertSRGBToLinear();
-const oddColor = new THREE.Color(0.286, 0.851, 0.882).convertSRGBToLinear();
+const oddColor = new THREE.Color(0.286, 0.851, 0.882).convertSRGBToLinear();;
 
 // === Scene setup ===
 async function init() {
@@ -83,7 +83,7 @@ async function init() {
             const mat = new THREE.MeshStandardMaterial(
                 {
                     metalness: 0.1,
-                    roughness: 0.4
+                    roughness: 0.35
                 }
             );
             const tile = tile_mesh.clone() as THREE.Mesh;
