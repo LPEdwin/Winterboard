@@ -30,6 +30,11 @@ camera.lookAt(0, 0, 0);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
+controls.mouseButtons = {
+    MIDDLE: THREE.MOUSE.PAN,
+    RIGHT: THREE.MOUSE.ROTATE
+};
+
 // Lights
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
 scene.add(hemiLight);
@@ -140,7 +145,7 @@ async function init() {
     card.scale.multiplyScalar(0.75);
     antiScale.position.set(0, -80, -200);
     card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
-  
+
     // Shadow receiver
     const shadowPlane = new THREE.Mesh(
         new THREE.PlaneGeometry(boardSize * tileSize, boardSize * tileSize),
@@ -157,6 +162,8 @@ async function init() {
     const clock = new THREE.Clock();
 
     window.addEventListener("pointerdown", (event) => {
+        if (event.button != 0)
+            return;
         const rect = renderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2(
             ((event.clientX - rect.left) / rect.width) * 2 - 1,
