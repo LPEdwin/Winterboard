@@ -2,6 +2,9 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { loadGLB, buildPrefilteredRadianceMap } from "./loaders";
 import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
@@ -111,6 +114,18 @@ async function init() {
     shadowPlane.receiveShadow = true;
     scene.add(shadowPlane);
 
+    // === Effect ===
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloom = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        /*strength*/1.2,
+        /*radius*/0.4,
+        /*threshold*/0.85
+    );
+    composer.addPass(bloom);
+
     // === Scar model ===    
     const scar = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as THREE.Mesh;
     scar.position.set(-0.1, 0.5, tileSize * 0.5);
@@ -143,14 +158,21 @@ async function init() {
 
     card.scale.multiplyScalar(0.4);
     card.position.z -= 0.75;
-    card.position.y -=0.25;
+    card.position.y -= 0.25;
     card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
 
     scar.add(card);
 
     // === Interaction ===
-    let highlighted: THREE.Mesh | null = null;
+    let currentPick: THREE.Mesh | null = null;
+    let currentMaterial: THREE.Material | THREE.Material[] | null = null
     let currentTarget: THREE.Vector3 | null = null;
+    let highlighMaterial = new THREE.MeshStandardMaterial(
+        {
+            color: 0x000000,
+            emissive: 0xeeeeee,
+        }
+    );
     const MOVE_SPEED = 5;
 
     window.addEventListener("pointerdown", (event) => {
@@ -172,11 +194,13 @@ async function init() {
             currentTarget.x += 0.4;
             currentTarget.y = scar.position.y;
 
-            if (highlighted) {
-                (highlighted.material as THREE.MeshStandardMaterial).emissive.set(0x000000);
+            if (currentPick) {
+                // restore material
+                currentPick.material = currentMaterial!;
             }
-            highlighted = picked;
-            (highlighted.material as THREE.MeshStandardMaterial).emissive.copy(selectedColor);
+            currentPick = picked;
+            currentMaterial = picked.material;
+            currentPick.material = highlighMaterial;
         }
     });
 
@@ -200,7 +224,9 @@ async function init() {
         }
 
         controls.update();
-        renderer.render(scene, camera);
+        //renderer.render(scene, camera);
+        composer.render();
+
         requestAnimationFrame(Update);
     }
     Update();
