@@ -6,6 +6,13 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
+// Required for Github Pages deployment
+THREE.DefaultLoadingManager.setURLModifier((url) => {
+  if (/^(https?:|data:)/.test(url)) return url;         
+  const clean = url.startsWith('/') ? url.slice(1) : url;
+  return import.meta.env.BASE_URL + clean;             
+});
+
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
 // Renderer setup
