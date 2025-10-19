@@ -69,7 +69,7 @@ async function loadLdrEnv(path: string) {
     tex.dispose();
     pmrem.dispose();
 }
-await loadLdrEnv('/hdri/rich_multi_nebulae_1k.png');
+await loadLdrEnv('/hdri/rich_multi_nebulae_2k.png');
 
 // === Board ===
 const boardSize = 8;
@@ -155,7 +155,7 @@ async function init() {
         if (intersects.length > 0) {
             const picked = intersects[0].object as THREE.Mesh;
             currentTarget = picked.getWorldPosition(new THREE.Vector3());
-            currentTarget.x += -0.4;
+            currentTarget.x += 0.4;
             currentTarget.y = scar.position.y;
 
             if (highlighted) {
