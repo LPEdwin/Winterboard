@@ -71,8 +71,8 @@ const boardSize = 8;
 const tileSize = 1;
 const tiles: THREE.Mesh[] = [];
 
-const evenColor = new THREE.Color(0.082, 0.509, 0.690);
-const oddColor = new THREE.Color(0.286, 0.851, 0.882);
+const evenColor = new THREE.Color(0.082, 0.509, 0.690).convertSRGBToLinear();
+const oddColor = new THREE.Color(0.286, 0.851, 0.882).convertSRGBToLinear();
 
 // === Scene setup ===
 async function init() {
