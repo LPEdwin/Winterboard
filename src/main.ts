@@ -5,12 +5,13 @@ import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { isMobile } from "./device";
 
 // Required for Github Pages deployment
 THREE.DefaultLoadingManager.setURLModifier((url) => {
-  if (/^(https?:|data:)/.test(url)) return url;         
-  const clean = url.startsWith('/') ? url.slice(1) : url;
-  return import.meta.env.BASE_URL + clean;             
+    if (/^(https?:|data:)/.test(url)) return url;
+    const clean = url.startsWith('/') ? url.slice(1) : url;
+    return import.meta.env.BASE_URL + clean;
 });
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
@@ -121,16 +122,19 @@ async function init() {
     scene.add(shadowPlane);
 
     // === Effect ===
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
+    let composer: EffectComposer | undefined;
+    if (!isMobile()) {
+        composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
 
-    const bloom = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        const bloom = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
         /*strength*/1.2,
         /*radius*/0.4,
         /*threshold*/0.85
-    );
-    composer.addPass(bloom);
+        );
+        composer.addPass(bloom);
+    }
 
     // === Scar model ===    
     const scar = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as THREE.Mesh;
@@ -230,8 +234,12 @@ async function init() {
         }
 
         controls.update();
-        //renderer.render(scene, camera);
-        composer.render();
+        if (isMobile()) {
+            renderer.render(scene, camera);
+        }
+        else {
+            composer?.render();
+        }
 
         requestAnimationFrame(Update);
     }
