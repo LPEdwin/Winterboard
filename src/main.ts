@@ -219,7 +219,11 @@ async function init() {
     const clock = new THREE.Clock();
     const stats = new Stats();
     stats.dom.style.position = 'fixed';
-    stats.dom.style.pointerEvents = 'none';
+    stats.dom.style.top = 'calc(env(safe-area-inset-top,0px) + 10px)';
+    stats.dom.style.left = 'calc(env(safe-area-inset-left,0px) + 10px)';
+    stats.dom.style.zIndex = '9999';
+    stats.dom.style.transformOrigin = 'top left';
+    stats.dom.style.transform = window.innerWidth < 768 ? 'scale(1.6)' : 'scale(1)';
     document.body.appendChild(stats.dom);
 
     function Update() {
@@ -251,6 +255,7 @@ async function init() {
     Update();
 
     window.addEventListener("resize", () => {
+        stats.dom.style.transform = window.innerWidth < 768 ? 'scale(1.6)' : 'scale(1)';
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
