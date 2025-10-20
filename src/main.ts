@@ -18,8 +18,13 @@ THREE.DefaultLoadingManager.setURLModifier((url) => {
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
 // Renderer setup
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
+const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: !isMobile(),
+    powerPreference: isMobile() ? 'default' : 'high-performance',
+});
+const DPR_CAP = isMobile() ? 1.0 : 1.5;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, DPR_CAP));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
