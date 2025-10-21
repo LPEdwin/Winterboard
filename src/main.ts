@@ -29,7 +29,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.shadowMap.enabled = true;
 
 // Scene + Background
 const scene = new THREE.Scene();
