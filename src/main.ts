@@ -227,14 +227,10 @@ async function init() {
 
     // === Update ===
     const clock = new THREE.Clock();
-    const stats = new Stats();
-    stats.dom.style.position = 'fixed';
-    stats.dom.style.top = 'calc(env(safe-area-inset-top,0px) + 10px)';
-    stats.dom.style.left = 'calc(env(safe-area-inset-left,0px) + 10px)';
-    stats.dom.style.zIndex = '9999';
-    stats.dom.style.transformOrigin = 'top left';
-    stats.dom.style.transform = isMobile() ? 'scale(1.6)' : 'scale(1)';
-    document.body.appendChild(stats.dom);
+    const fpsDiv = ensureFpsDiv();
+    let currentFps: number = 0;
+    let frames: number = 0;
+    let prevTime: number = 0;
 
     function Update() {
         const delta = clock.getDelta();
@@ -259,17 +255,52 @@ async function init() {
         else {
             composer?.render();
         }
-        stats.update();
+        frames++;
+        const time = performance.now();
+
+        if (time >= prevTime + 1000) {
+
+            currentFps = Math.round((frames * 1000) / (time - prevTime));
+
+            frames = 0;
+            prevTime = time;
+
+        }
+        fpsDiv.textContent = `${currentFps.toFixed(0)} fps`;
+
         requestAnimationFrame(Update);
     }
+
     Update();
 
     window.addEventListener("resize", () => {
-        stats.dom.style.transform = isMobile() ? 'scale(1.6)' : 'scale(1)';
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    function ensureFpsDiv() {
+        let el = document.getElementById("fps") as HTMLDivElement | null;
+        if (!el) {
+            el = document.createElement("div");
+            el.id = "fps";
+            Object.assign(el.style, {
+                position: "fixed",
+                top: "8px",
+                left: "8px",
+                padding: "4px 8px",
+                fontFamily: "monospace",
+                fontSize: isMobile() ? "3rem" : "14px",
+                background: "rgba(0,0,0,0.5)",
+                color: "#fff",
+                borderRadius: "6px",
+                zIndex: "9999",
+                userSelect: "none",
+            });
+            document.body.appendChild(el);
+        }
+        return el;
+    }
 }
 
 init().catch(console.error);
