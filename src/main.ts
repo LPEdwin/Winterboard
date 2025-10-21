@@ -87,19 +87,27 @@ const tiles: THREE.Mesh[] = [];
 const evenColor = new THREE.Color(0.082, 0.509, 0.690).convertSRGBToLinear();
 const oddColor = new THREE.Color(0.286, 0.851, 0.882).convertSRGBToLinear();;
 
+const evenMat = new THREE.MeshStandardMaterial({
+    metalness: 0.1,
+    roughness: 0.35,
+    color: evenColor
+});
+
+const oddMat = new THREE.MeshStandardMaterial({
+    metalness: 0.1,
+    roughness: 0.35,
+    color: oddColor
+});
+
 // === Scene setup ===
 async function init() {
-    const tile_mesh = (await loadGLB("/models/box.glb")).children[0]!;
+    const tileSrc = (await loadGLB("/models/box.glb")).children[0] as THREE.Mesh;
+    const tileGeometry = (tileSrc.geometry as THREE.BufferGeometry).clone();
+    tileGeometry.computeBoundingBox();
 
     for (let x = 0; x < boardSize; x++) {
         for (let z = 0; z < boardSize; z++) {
-            const mat = new THREE.MeshStandardMaterial(
-                {
-                    metalness: 0.1,
-                    roughness: 0.35
-                }
-            );
-            const tile = tile_mesh.clone() as THREE.Mesh;
+            const tile = new THREE.Mesh(tileGeometry, (x + z) % 2 === 0 ? evenMat : oddMat);
             tile.scale.multiplyScalar(0.98);
             tile.castShadow = false;
             tile.receiveShadow = true;
@@ -109,8 +117,6 @@ async function init() {
                 (z - boardSize / 2 + 0.5) * tileSize
             );
 
-            mat.color.copy((x + z) % 2 === 0 ? evenColor : oddColor);
-            tile.material = mat;
             tile.name = `tile_${x}_${z}`;
             scene.add(tile);
             tiles.push(tile);
