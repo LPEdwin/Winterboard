@@ -6,7 +6,6 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { isMobile } from "./device";
-import Stats from 'three/addons/libs/stats.module.js';
 
 // Required for Github Pages deployment
 THREE.DefaultLoadingManager.setURLModifier((url) => {
