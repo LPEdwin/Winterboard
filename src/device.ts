@@ -1,16 +1,16 @@
+export type Role = 'host' | 'client';
+const r = new URLSearchParams(location.search).get('role');
+const role: Role | undefined = r === 'host' || r === 'client' ? r : undefined;
+
+export const getRole = () => role;
+
+
 let _isMobile: boolean | undefined;
 
-const role: string | undefined = new URLSearchParams(location.search).get('role') ?? undefined;
-const isClient = role === 'client';
-const isHost = role === 'host';
-const hasRole = isClient || isHost;
-
 export function isMobile(): boolean {
-    if (_isMobile) return _isMobile;
-    if (hasRole) {
-        _isMobile = isClient;
+    if (_isMobile)
         return _isMobile;
-    }
+
     const ua = navigator.userAgent || '';
     const chMobile = (navigator as any).userAgentData?.mobile === true; // Chrome/Edge
     const touch = navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;

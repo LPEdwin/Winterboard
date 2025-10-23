@@ -5,8 +5,9 @@ import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { isMobile } from "./device";
-import { Match } from "./game/match";
+import { getRole, isMobile } from "./device";
+import { GameServer } from "./game/game-match";
+import { fromVec3, toVec3, type PlayerAction, type Vec3 } from "./game/player";
 
 // Required for Github Pages deployment
 THREE.DefaultLoadingManager.setURLModifier((url) => {
@@ -55,7 +56,7 @@ controls.mouseButtons = {
     RIGHT: THREE.MOUSE.ROTATE
 };
 
-// Lights
+// === Lights ===
 const radianceMap = await new HDRLoader().loadAsync('/hdri/kloppenheim_02_puresky_1k.hdr');
 scene.environment = (await buildPrefilteredRadianceMap(radianceMap, renderer)).texture;
 
@@ -64,20 +65,6 @@ dirLight.position.set(-5, 10, -5);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(1024, 1024);
 scene.add(dirLight);
-
-
-// const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-// dirLight.position.set(-5, 10, -5);
-// dirLight.castShadow = true;
-// dirLight.shadow.mapSize.set(1024, 1024);
-// scene.add(dirLight);
-
-// const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-// scene.add(hemiLight);
-
-// const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(ambientLight);
-
 
 // === Board ===
 const boardSize = 8;
@@ -101,10 +88,11 @@ const oddMat = new THREE.MeshStandardMaterial({
 
 // === Scene setup ===
 async function init() {
-    const game = isMobile() ? await Match.join() : await Match.host();
-    game.onAction = (data) => { currentTarget = new THREE.Vector3(-4 + Math.random() * 8, currentTarget?.y, -4 + Math.random() * 8) };
-    window.addEventListener('pagehide', () => game.dispose(), { once: true });
-    window.addEventListener('beforeunload', () => game.dispose(), { once: true });
+    const server = await createMatchAsync();
+    if (server) {
+        server.onAction = action => playActionLocal(action);
+        window.addEventListener('pagehide', () => server.dispose(), { once: true });
+    }
 
     const tileSrc = (await loadGLB("/models/box.glb")).children[0] as THREE.Mesh;
     const tileGeometry = (tileSrc.geometry as THREE.BufferGeometry).clone();
@@ -215,12 +203,11 @@ async function init() {
         const intersects = raycaster.intersectObjects(tiles, false);
 
         if (intersects.length > 0) {
-            game.play({ type: 'Move' });
             const picked = intersects[0]?.object as THREE.Mesh;
             currentTarget = picked.getWorldPosition(new THREE.Vector3());
             currentTarget.x += 0.4;
             currentTarget.y = scar.position.y;
-
+            playAction({ type: 'Move', targetPosition: toVec3(currentTarget) });
             if (currentPick) {
                 // restore material
                 currentPick.material = currentMaterial!;
@@ -306,6 +293,30 @@ async function init() {
             document.body.appendChild(el);
         }
         return el;
+    }
+
+    async function createMatchAsync(): Promise<GameServer | undefined> {
+        const role = getRole();
+        switch (role) {
+            case 'client': return GameServer.join();
+            case 'host': return GameServer.host();
+            case undefined: undefined;
+        }
+    }
+
+    function playAction(action: PlayerAction) {
+        server?.send(action);
+        playActionLocal(action);
+    }
+
+    function playActionLocal(action: PlayerAction) {
+        switch (action.type) {
+            case 'Move': currentTarget = mapXZFrom(fromVec3(action.targetPosition!), scar.position);
+        }
+    }
+
+    function mapXZFrom(source: THREE.Vector3, target: THREE.Vector3) {
+        return new THREE.Vector3(source.x, target.y, source.z);
     }
 }
 
