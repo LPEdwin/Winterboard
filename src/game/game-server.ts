@@ -51,9 +51,9 @@ export class GameServer {
             conn.on('error', e => console.error('Conn error', e));
 
             conn.on('open', () => {
+                console.log('Client connected with id', conn.peer);
                 game.conn = conn;
                 game.otherId = conn.peer;
-                conn.send('Current game state');
             });
         });
 
