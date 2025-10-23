@@ -6,6 +6,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { isMobile } from "./device";
+import { Match } from "./game/match";
 
 // Required for Github Pages deployment
 THREE.DefaultLoadingManager.setURLModifier((url) => {
@@ -100,6 +101,11 @@ const oddMat = new THREE.MeshStandardMaterial({
 
 // === Scene setup ===
 async function init() {
+    const game = isMobile() ? await Match.join() : await Match.host();
+    game.onAction = (data) => { currentTarget = new THREE.Vector3(-4 + Math.random() * 8, currentTarget?.y, -4 + Math.random() * 8) };
+    window.addEventListener('pagehide', () => game.dispose(), { once: true });
+    window.addEventListener('beforeunload', () => game.dispose(), { once: true });
+
     const tileSrc = (await loadGLB("/models/box.glb")).children[0] as THREE.Mesh;
     const tileGeometry = (tileSrc.geometry as THREE.BufferGeometry).clone();
     tileGeometry.computeBoundingBox();
@@ -209,6 +215,7 @@ async function init() {
         const intersects = raycaster.intersectObjects(tiles, false);
 
         if (intersects.length > 0) {
+            game.play({ type: 'Move' });
             const picked = intersects[0]?.object as THREE.Mesh;
             currentTarget = picked.getWorldPosition(new THREE.Vector3());
             currentTarget.x += 0.4;
