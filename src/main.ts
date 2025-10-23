@@ -6,7 +6,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { getRole, isMobile } from "./device";
-import { GameServer } from "./game/game-match";
+import { GameServer } from "./game/game-server";
 import { fromVec3, toVec3, type PlayerAction, type Vec3 } from "./game/player";
 
 // Required for Github Pages deployment
