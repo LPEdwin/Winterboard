@@ -10,11 +10,12 @@
     "postbuild": "cp dist/index.html dist/404.html"
   },
   "dependencies": {
+    "peerjs": "^1.5.5",
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
+    "@types/three": "^0.180.0",
     "typescript": "^5.2.0",
-    "@types/three": "^0.180.0"
+    "vite": "^5.0.0"
   }
 }
