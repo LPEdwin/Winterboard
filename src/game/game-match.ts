@@ -2,6 +2,10 @@ import { Peer, type DataConnection } from 'peerjs';
 import type { PlayerAction } from "./player";
 import { getRole } from "../device";
 
+type Events = {
+    action: (action: PlayerAction) => void
+}
+
 export class GameServer {
 
     static readonly baseId = 'lpedwin_winterboard'
@@ -13,7 +17,22 @@ export class GameServer {
     private otherId?: string;
     private peer?: Peer;
 
-    onAction?: (action: PlayerAction) => void;
+
+    private listeners: { [k in keyof Events]?: Set<Events[k]> } = {}
+
+    private emit<K extends keyof Events>(k: K, ...args: Parameters<Events[K]>) {
+        const set = this.listeners[k] as Set<Events[K]> | undefined;
+        set?.forEach(fn => {
+            (fn as (...a: Parameters<Events[K]>) => void)(...args);
+        });
+    }
+
+    on<K extends keyof Events>(k: K, fn: Events[K]) {
+        (this.listeners[k] ??= new Set()).add(fn);
+        return () => this.listeners[k]!.delete(fn);
+    }
+
+
 
 
     static async host(): Promise<GameServer> {
@@ -24,7 +43,7 @@ export class GameServer {
         host.on('error', err => console.error('Host error', err));
 
         host.on('connection', conn => {
-            conn.on('data', d => game.onAction?.(d as PlayerAction));
+            conn.on('data', d => game.emit('action', d as PlayerAction));
             conn.on('close', () => {
                 console.log('Connection closed.');
                 if (game.conn === conn) game.conn = undefined;
@@ -52,7 +71,7 @@ export class GameServer {
         client.on('open', () => {
             const conn = client.connect(this.hostId);
 
-            conn.on('data', d => game.onAction?.(d as PlayerAction));
+            conn.on('data', d => game.emit('action', d as PlayerAction));
             conn.on('close', () => {
                 console.log('Connection closed.');
                 if (game.conn === conn) game.conn = undefined;

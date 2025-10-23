@@ -90,7 +90,7 @@ const oddMat = new THREE.MeshStandardMaterial({
 async function init() {
     const server = await createMatchAsync();
     if (server) {
-        server.onAction = action => playActionLocal(action);
+        server.on('action', action => playActionLocal(action));
         window.addEventListener('pagehide', () => server.dispose(), { once: true });
     }
 
