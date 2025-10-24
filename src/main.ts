@@ -7,7 +7,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { getRole, isMobile } from "./device";
 import { GameServer } from "./game/game-server";
-import { fromVec3, toVec3, type PlayerAction, type Vec3 } from "./game/player";
+import { createAction, fromVec3, toVec3, type PlayerAction } from "./game/player-action";
 
 // Required for Github Pages deployment
 THREE.DefaultLoadingManager.setURLModifier((url) => {
@@ -207,7 +207,8 @@ async function init() {
             currentTarget = picked.getWorldPosition(new THREE.Vector3());
             currentTarget.x += 0.4;
             currentTarget.y = scar.position.y;
-            playAction({ type: 'Move', targetPosition: toVec3(currentTarget) });
+            const move = createAction('move', { target: toVec3(currentTarget) })
+            playAction(move);
             if (currentPick) {
                 // restore material
                 currentPick.material = currentMaterial!;
@@ -311,7 +312,7 @@ async function init() {
 
     function playActionLocal(action: PlayerAction) {
         switch (action.type) {
-            case 'Move': currentTarget = mapXZFrom(fromVec3(action.targetPosition!), scar.position);
+            case 'move': currentTarget = mapXZFrom(fromVec3(action.payload.target), scar.position);
         }
     }
 

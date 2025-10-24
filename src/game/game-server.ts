@@ -1,5 +1,5 @@
 import { Peer, type DataConnection } from 'peerjs';
-import type { PlayerAction } from "./player";
+import type { PlayerAction } from "./player-action";
 import { getRole } from "../device";
 
 type Events = {
@@ -31,9 +31,6 @@ export class GameServer {
         (this.listeners[k] ??= new Set()).add(fn);
         return () => this.listeners[k]!.delete(fn);
     }
-
-
-
 
     static async host(): Promise<GameServer> {
         const host = new Peer(this.id);
