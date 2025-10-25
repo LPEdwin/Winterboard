@@ -5,9 +5,11 @@ import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { getRole, isMobile } from "./device";
-import { GameServer } from "./game/game-server";
-import { createAction, fromVec3, toVec3, type PlayerAction } from "./game/player-action";
+import { isMobile } from "./device";
+import { createServerAsync } from "./game/game-server";
+import { createAction, } from "./game/player-action";
+import { World, type Vec2 } from "./game/world";
+import { Pawn } from "./game/pawn";
 
 // Required for Github Pages deployment
 THREE.DefaultLoadingManager.setURLModifier((url) => {
@@ -88,12 +90,13 @@ const oddMat = new THREE.MeshStandardMaterial({
 
 // === Scene setup ===
 async function init() {
-    const server = await createMatchAsync();
+    const server = await createServerAsync();
+    const world = new World();
     if (server) {
-        server.on('action', action => playActionLocal(action));
-        window.addEventListener('pagehide', () => server.dispose(), { once: true });
+        world.attachServer(server);
     }
 
+    const board = new Map<THREE.Mesh, Vec2>();
     const tileSrc = (await loadGLB("/models/box.glb")).children[0] as THREE.Mesh;
     const tileGeometry = (tileSrc.geometry as THREE.BufferGeometry).clone();
     tileGeometry.computeBoundingBox();
@@ -109,7 +112,7 @@ async function init() {
                 0,
                 (z - boardSize / 2 + 0.5) * tileSize
             );
-
+            board.set(tile, { x, y: z });
             tile.name = `tile_${x}_${z}`;
             scene.add(tile);
             tiles.push(tile);
@@ -141,11 +144,14 @@ async function init() {
     }
 
     // === Scar model ===    
-    const scar = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as THREE.Mesh;
-    scar.position.set(-0.1, 0.5, tileSize * 0.5);
-    scar.castShadow = true;
-    scar.receiveShadow = true;
-    scene.add(scar);
+    const scar = new Pawn();
+    world.addPawn(scar);
+
+    const scarMesh = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as THREE.Mesh;
+    scarMesh.position.set(-0.1, 0.5, tileSize * 0.5);
+    scarMesh.castShadow = true;
+    scarMesh.receiveShadow = true;
+    scene.add(scarMesh);
 
     const orange_mat = new THREE.MeshStandardMaterial({
         color: 0xdd8437,
@@ -153,7 +159,7 @@ async function init() {
         roughness: 0.2,
     });
 
-    scar.material = orange_mat;
+    scarMesh.material = orange_mat;
 
     // Card 
     const tex = await new THREE.TextureLoader().loadAsync("/models/Scar_Lion_King.png");
@@ -175,7 +181,7 @@ async function init() {
     card.position.y -= 0.25;
     card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
 
-    scar.add(card);
+    scarMesh.add(card);
 
     // === Interaction ===
     let currentPick: THREE.Mesh | null = null;
@@ -206,9 +212,10 @@ async function init() {
             const picked = intersects[0]?.object as THREE.Mesh;
             currentTarget = picked.getWorldPosition(new THREE.Vector3());
             currentTarget.x += 0.4;
-            currentTarget.y = scar.position.y;
-            const move = createAction('move', { target: toVec3(currentTarget) })
-            playAction(move);
+            currentTarget.y = scarMesh.position.y;
+            // Todo: Handle not found
+            const move = createAction('move', { pawnId: scar.id, target: board.get(picked)! })
+            world.playAction(move);
             if (currentPick) {
                 // restore material
                 currentPick.material = currentMaterial!;
@@ -230,15 +237,15 @@ async function init() {
         const delta = clock.getDelta();
 
         if (currentTarget) {
-            const pos = scar.position;
+            const pos = scarMesh.position;
             const dist = pos.distanceTo(currentTarget);
             const step = MOVE_SPEED * delta;
 
             if (dist <= step) {
-                scar.position.copy(currentTarget);
+                scarMesh.position.copy(currentTarget);
                 currentTarget = null;
             } else {
-                scar.position.lerp(currentTarget, step / dist);
+                scarMesh.position.lerp(currentTarget, step / dist);
             }
         }
 
@@ -294,30 +301,6 @@ async function init() {
             document.body.appendChild(el);
         }
         return el;
-    }
-
-    async function createMatchAsync(): Promise<GameServer | undefined> {
-        const role = getRole();
-        switch (role) {
-            case 'client': return GameServer.join();
-            case 'host': return GameServer.host();
-            case undefined: undefined;
-        }
-    }
-
-    function playAction(action: PlayerAction) {
-        server?.send(action);
-        playActionLocal(action);
-    }
-
-    function playActionLocal(action: PlayerAction) {
-        switch (action.type) {
-            case 'move': currentTarget = mapXZFrom(fromVec3(action.payload.target), scar.position);
-        }
-    }
-
-    function mapXZFrom(source: THREE.Vector3, target: THREE.Vector3) {
-        return new THREE.Vector3(source.x, target.y, source.z);
     }
 }
 

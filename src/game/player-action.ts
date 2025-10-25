@@ -1,10 +1,5 @@
-import { Vector3 } from "three";
-
-export type Vec3 = [number, number, number]
-
-export const toVec3 = (v: { x: number; y: number; z: number }): Vec3 => [v.x, v.y, v.z];
-export const fromVec3 = (v: Vec3) => new Vector3(v[0], v[1], v[2]);
-
+import type { PawnId } from "./pawn";
+import type { Vec2 } from "./world";
 
 export interface PlayerAction<K extends keyof Actions = keyof Actions> {
     type: K;
@@ -14,7 +9,7 @@ export interface PlayerAction<K extends keyof Actions = keyof Actions> {
 export type Actions = {
     ability: never,
     attack: never,
-    move: { target: Vec3 },
+    move: { pawnId: PawnId, target: Vec2 },
     none: never
 }
 
