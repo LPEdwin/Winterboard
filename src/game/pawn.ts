@@ -1,4 +1,5 @@
-import type { Vec2, World } from "./world";
+import type { Mesh, Vector3 } from "three";
+import { toVector3, type Vec3, type World } from "./world";
 
 export type PawnId = number;
 
@@ -6,9 +7,26 @@ export class Pawn {
     id: PawnId = 0;
     world?: World;
     name?: string;
-    field: Vec2 = { x: 0, y: 0 };
+    mesh?: Mesh;
+    moveSpeed: number = 1.0;
+    currentTarget: Vector3 | null = null;
 
-    move(field: Vec2) {
-        this.field = field
+    move(position: Vec3) {
+        this.currentTarget = toVector3(position);
+    }
+
+    update(delta: number) {
+        if (this.currentTarget) {
+            const pos = this.mesh!.position;
+            const dist = pos.distanceTo(this.currentTarget);
+            const step = this.moveSpeed * delta;
+
+            if (dist <= step) {
+                this.mesh!.position.copy(this.currentTarget);
+                this.currentTarget = null;
+            } else {
+                this.mesh!.position.lerp(this.currentTarget, step / dist);
+            }
+        }
     }
 }
