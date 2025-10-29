@@ -1,5 +1,5 @@
-import type { PawnId } from "./pawn";
-import type { Vec2, Vec3 } from "./world";
+import type { NetId } from "./pawn";
+import type { Vec3 } from "./world";
 
 export interface PlayerAction<K extends keyof Actions = keyof Actions> {
     type: K;
@@ -9,7 +9,7 @@ export interface PlayerAction<K extends keyof Actions = keyof Actions> {
 export type Actions = {
     ability: never,
     attack: never,
-    move: { pawnId: PawnId, target: Vec3 },
+    move: { netId: NetId, target: Vec3 },
     none: never
 }
 

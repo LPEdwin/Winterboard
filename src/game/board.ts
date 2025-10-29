@@ -1,6 +1,6 @@
-import { Scene, Mesh, Color, MeshStandardMaterial, BufferGeometry, PlaneGeometry, ShadowMaterial, type NormalBufferAttributes, type BufferGeometryEventMap, type Object3DEventMap, Material } from "three";
+import { Scene, Mesh, Color, MeshStandardMaterial, BufferGeometry, PlaneGeometry, ShadowMaterial, Material, Vector3 } from "three";
 import { loadGLB } from "../loaders";
-import type { Vec2 } from "./world";
+import { type Vec2 } from "./primitives";
 
 export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
     const boardSize = 8;
@@ -54,12 +54,14 @@ export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
     shadowPlane.receiveShadow = true;
     scene.add(shadowPlane);
 
-    return new Board(tiles, tileLookup);
+    return new Board({ x: 8, y: 8 }, tiles, tileLookup);
 }
 
 export class Board {
 
-    get tiles() { return this._tiles; }
+    get tiles() { return [...this._tiles]; }
+
+    private _bboxSize: Vector3;
     private highlightedTile: Mesh | null = null;
     private restoreMaterial: Material | Material[] | null = null
 
@@ -69,13 +71,34 @@ export class Board {
             emissive: 0xeeeeee,
         }
     );
+
     constructor(
+        private _size: Vec2,
         private _tiles: Mesh[],
         private _tileLookup: Map<Mesh, Vec2>
-    ) { }
+    ) {
+        if (_tiles.length <= 0) {
+            this._bboxSize = new Vector3();
+        }
+        const bbox = _tiles[0]!.geometry.boundingBox;
+        this._bboxSize = bbox!.max.clone().sub(bbox!.min);
+    }
 
     getTileIndex(tile: Mesh) {
         return this._tileLookup.get(tile);
+    }
+
+    getTile(x: number, y: number): Mesh {
+        if (!Number.isInteger(x) || !Number.isInteger(y))
+            throw new Error("Indices aren't intergers");
+        if (x < 0 || y < 0 || x >= this._size.x || y >= this._size.y)
+            throw new Error('Index out of bounds.');
+        return this.tiles[this._size.x * x + y]!;
+    }
+
+    getTileAnchor(x: number, y: number): Vector3 {
+        const tile = this.getTile(x, y);
+        return tile.position.clone();
     }
 
     highlightTile(tile: Mesh | null) {

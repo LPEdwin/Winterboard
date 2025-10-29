@@ -1,46 +1,95 @@
-import { Pawn, type PawnId } from "./pawn";
+import { Pawn } from "./pawn";
 import { GameServer } from "./game-server";
 import { createAction, type PlayerAction } from "./player-action";
 import { Board, create8x8BoardAsync } from "./board";
-import { Camera, Material, Mesh, MeshStandardMaterial, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
-import { createScarAsync } from "./scar";
-
-export type Vec2 = { x: number, y: number }
-export type Vec3 = { x: number, y: number, z: number }
-export function toVector3(v: Vec3) { return new Vector3(v.x, v.y, v.z); }
-export function fromVector3(v: Vector3) { return { x: v.x, y: v.y } }
+import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
+import { createCaptainHookAsync, createHadesAsync, createMaleficentAsync, createMulanAsync, createScarAsync, createThumperAsync } from "./heroes";
+import type { NetId, Team, TeamId } from "./primitives";
 
 export async function createWorldAsync(scene: Scene): Promise<World> {
     const board = await create8x8BoardAsync(scene);
-    const world = new World(board);
+    const world = new World(scene, board);
 
-    const scar = await createScarAsync();
-    world.addPawn(scar);
-    if (scar.mesh)
-        scene.add(scar.mesh);
+    const teamA = {
+        netId: 1,
+        pawns: [
+            await createScarAsync(),
+            await createHadesAsync(),
+            await createCaptainHookAsync()
+        ]
+    };
+
+    const teamB = {
+        netId: 2,
+        pawns: [
+            await createMaleficentAsync(),
+            await createThumperAsync(),
+            await createMulanAsync()
+        ]
+    };
+
+    teamA.pawns.forEach((x, i) => {
+        x.setPosition(board.getTileAnchor(i + 2, 0));
+    });
+
+    teamB.pawns.forEach((x, i) => {
+        x.setPosition(board.getTileAnchor(i + 2, 7));
+    });
+
+    world.spawnTeam(teamA);
+    world.spawnTeam(teamB);
 
     return world;
 }
 
 export class World {
     public readonly scene;
-    private currentId: PawnId = 0
-    private pawns = new Map<PawnId, Pawn>();
+    private pawns = new Map<NetId, Pawn>();
+    private teams = new Map<TeamId, Team>;
     public readonly board: Board;
     private get currentPawn(): Pawn {
         return this.pawns.values().next().value as Pawn;
     }
     server?: GameServer;
 
-    constructor(board: Board) {
-        this.scene = new Scene();
+    constructor(scene: Scene, board: Board) {
+        this.scene = scene;
         this.board = board;
+
+        scene.add(new AxesHelper(2));   // X=red, Y=green, Z=blue
+        scene.add(new GridHelper(10, 10));
     }
 
-    addPawn(pawn: Pawn) {
-        pawn.id = this.currentId++;
-        pawn.world = this;
-        this.pawns.set(pawn.id, pawn);
+    spawnTeam(team: Team) {
+        let netId = team.netId;
+        if (netId) {
+            if (this.teams.has(netId))
+                throw new Error(`Team with nedId ${netId} already exists.`);
+        }
+        else {
+            const keys = [...this.teams.keys()];
+            netId = keys.length === 0 ? 0 : Math.max(...keys) + 1;
+            team.netId = netId;
+        }
+        this.teams.set(team.netId!, team);
+        for (let p of team.pawns)
+            this.spawnPawn(p);
+    }
+
+    spawnPawn(pawn: Pawn) {
+        let netId = pawn.netId;
+        if (netId) {
+            if (this.pawns.has(netId))
+                throw new Error(`Pawn with nedId ${netId} already exists.`);
+        }
+        else {
+            const keys = [...this.pawns.keys()];
+            netId = keys.length === 0 ? 1 : Math.max(...keys) + 1;
+            pawn.netId = netId;
+        }
+        this.pawns.set(pawn.netId!, pawn);
+        if (pawn.mesh)
+            this.scene.add(pawn.mesh)
     }
 
     attachServer(server: GameServer) {
@@ -57,11 +106,11 @@ export class World {
     playActionLocal(action: PlayerAction) {
         switch (action.type) {
             case 'move': {
-                const id = action.payload.pawnId;
+                const id = action.payload.netId;
                 const pawn = this.pawns.get(id);
                 if (!pawn)
                     throw new Error(`Pawn with id ${id} doesn't exist.`);
-                pawn.move(action.payload.target);
+                pawn.setTargetPosition(action.payload.target);
             }
         }
     }
@@ -90,10 +139,10 @@ export class World {
 
     private tileSelected(tile: Mesh) {
         const playerPawn = this.currentPawn;
+        if (playerPawn.netId == undefined)
+            throw new Error(`Player pawn ${playerPawn.name} is missing a nedId.`);
         const targetPosition = tile.getWorldPosition(new Vector3());
-        targetPosition.x += 0.4;
-        targetPosition.y = playerPawn.mesh!.position.y;
-        const move = createAction('move', { pawnId: playerPawn.id, target: targetPosition })
+        const move = createAction('move', { netId: playerPawn.netId, target: targetPosition })
         this.playAction(move);
     }
 
