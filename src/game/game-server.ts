@@ -18,7 +18,7 @@ export async function createServerAsync(): Promise<GameServer | undefined> {
 
 export class GameServer {
 
-    static readonly baseId = 'lpedwin_winterboard2'
+    static readonly baseId = 'lpedwin_winterboard'
     static readonly matchId: string = 'xDg5LkoLfF';
     static get playerId(): string { return getRole() == 'client' ? 'Player2' : 'Player1'; }
     static readonly hostId: string = this.baseId + `_${this.matchId}_Player1`;
