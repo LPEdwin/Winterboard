@@ -6,7 +6,7 @@ import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector
 import { createCaptainHookAsync, createHadesAsync, createMaleficentAsync, createMulanAsync, createScarAsync, createThumperAsync } from "./heroes";
 import { type NetId, type Team } from "./primitives";
 import { localPlayer } from "./player";
-import { isHost } from "../device";
+import { isClient, isHost } from "../device";
 
 export async function createWorldAsync(scene: Scene): Promise<World> {
     const board = await create8x8BoardAsync(scene);
@@ -19,7 +19,7 @@ export async function createWorldAsync(scene: Scene): Promise<World> {
             await createHadesAsync(),
             await createCaptainHookAsync()
         ],
-        controlledBy: 'Player',
+        controlledBy: 'None',
         controller: undefined
     };
 
@@ -30,7 +30,7 @@ export async function createWorldAsync(scene: Scene): Promise<World> {
             await createThumperAsync(),
             await createMulanAsync()
         ],
-        controlledBy: 'Ai',
+        controlledBy: 'None',
         controller: undefined
     };
 
@@ -63,9 +63,12 @@ export class World {
         return this.localTeam?.netId == this.startingTeamId;
     }
     private history: PlayerAction[] = [];
+    private get turnHistory() {
+        return this.history.filter(x => x.type == 'move');
+    }
     private get isLocalTurn(): boolean {
-        return (!this.isStartingTeam && this.history.length % 2 == 1)
-            || (this.isStartingTeam && this.history.length % 2 == 0);
+        return (!this.isStartingTeam && this.turnHistory.length % 2 == 1)
+            || (this.isStartingTeam && this.turnHistory.length % 2 == 0);
     }
     public readonly board: Board;
 
@@ -115,11 +118,13 @@ export class World {
         this.server = server;
         server.on('action', action => this.playActionLocal(action));
         window.addEventListener('pagehide', () => server.dispose(), { once: true });
-        const unsubscribe = server.on('ready', () => {
-            server.send(createAction('join_request', { player: localPlayer }));
-            unsubscribe();
-        })
 
+        if (isClient()) {
+            const unsubscribe = server.on('ready', () => {
+                server.send(createAction('join_request', { player: localPlayer }));
+                unsubscribe();
+            })
+        }
     }
 
     playAction(action: PlayerAction) {
@@ -140,24 +145,29 @@ export class World {
             }
             case 'join_request': {
                 if (isHost()) {
-                    const other = this.teams.find(x => x.controller == undefined);
-                    if (other) {
-                        const respond = createAction('assign_player', {
+                    const response = createAction('assign_players', {
+                        pairs: [{
+                            player: localPlayer,
+                            teamId: this.teams[0]!.netId!
+                        },
+                        {
                             player: action.payload.player,
-                            teamId: other.netId!
-                        });
-                        this.server?.send(respond)
-                    }
+                            teamId: this.teams[1]!.netId!
+                        }]
+                    });
+                    this.playAction(response);
                 }
                 break;
             }
-            case 'assign_player': {
-                const teamId = action.payload.teamId;
-                const team = this.teamsById.get(teamId)
-                if (!team)
-                    throw new Error(`Can't assign player as team with id ${teamId} doesn't exist.`);
-                team.controlledBy = 'Player';
-                team.controller = action.payload.player;
+            case 'assign_players': {
+                for (let p of action.payload.pairs) {
+                    const teamId = p.teamId;
+                    const team = this.teamsById.get(teamId)
+                    if (!team)
+                        throw new Error(`Can't assign player as team with id ${teamId} doesn't exist.`);
+                    team.controlledBy = 'Player';
+                    team.controller = p.player;
+                }
                 break;
             }
         }

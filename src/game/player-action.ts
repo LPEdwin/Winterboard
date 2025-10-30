@@ -13,7 +13,7 @@ export type Actions = {
     move: ActionMeta & { pawnId: NetId, target: Vec3 },
     none: never,
     join_request: { player: Player },
-    assign_player: { player: Player, teamId: NetId }
+    assign_players: { pairs: { player: Player, teamId: NetId }[] }
 }
 
 export type ActionOf<K extends keyof Actions> =
