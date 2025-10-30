@@ -2,20 +2,6 @@ import { Peer, type PeerOptions, type DataConnection } from 'peerjs';
 import { type PlayerAction } from "./player-action";
 import { getRole } from "../device";
 
-let PEER_CONFIG: PeerOptions | undefined = undefined;
-
-// npx --yes -p peer peerjs --port 9000 --key peerjs
-// PEER_JS_CONFIG = {
-//     host: '127.0.0.1',
-//     port: 9000,
-//     path: '/',
-//     secure: false,
-//     key: 'peerjs',
-//     debug: 3 as const,
-//     pingInterval: 5000,
-//     config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-// };
-
 type Events = {
     action: (action: PlayerAction) => void,
     ready: () => void
@@ -23,14 +9,14 @@ type Events = {
 
 export class GameServer {
 
-    static readonly baseId = 'lpedwin_winterboard'
-    static readonly matchId: string = 'xDg5LkoLfF';
-    static get playerId(): string { return getRole() == 'client' ? 'Player2' : 'Player1'; }
-    static readonly hostId: string = this.baseId + `_${this.matchId}_Player1`;
-    static get id() { return this.baseId + `_${this.matchId}_${this.playerId}`; }
+    private static readonly baseId = 'lpedwin_winterboard'
+    private static readonly matchId: string = 'xDg5LkoLfF';
+    private static get playerId(): string { return getRole() == 'client' ? 'Player2' : 'Player1'; }
+    private static readonly hostId: string = this.baseId + `_${this.matchId}_Player1`;
+    private static get id() { return this.baseId + `_${this.matchId}_${this.playerId}`; }
     private conn: DataConnection | undefined = undefined;
     private peer?: Peer;
-
+    private config: PeerOptions | undefined;
     private listeners: { [k in keyof Events]?: Set<Events[k]> } = {}
 
     private emit<K extends keyof Events>(k: K, ...args: Parameters<Events[K]>) {
@@ -45,10 +31,13 @@ export class GameServer {
         return () => this.listeners[k]!.delete(fn);
     }
 
+    constructor(config?: PeerOptions) {
+        this.config = config;
+    }
+
     static async host(): Promise<GameServer> {
-        //const host = new Peer(this.id, GameServer.LOCAL_PEER_JS_CONFIG);
-        const host = new Peer(this.id, PEER_CONFIG);
         const server = new GameServer();
+        const host = new Peer(this.id, server.config);
         server.peer = host;
         host.on('open', id => console.log('Host peer created with id', id));
         host.on('error', err => console.error('Host error', err));
@@ -75,8 +64,9 @@ export class GameServer {
     }
 
     static async join(): Promise<GameServer> {
-        const client = new Peer(this.id, PEER_CONFIG);
         const server = new GameServer();
+        const client = new Peer(this.id, server.config);
+
         server.peer = client;
 
         client.on('open', id => console.log('Client peer created with id', id));
