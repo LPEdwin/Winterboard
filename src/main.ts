@@ -1,6 +1,4 @@
-import { isMobile } from "./device";
-import { createServerAsync } from "./game/game-server";
-import { createWorldAsync } from "./game/world";
+import { getRole, isHost, isMobile } from "./device";
 import {
     createCamera,
     createControls,
@@ -10,6 +8,8 @@ import {
 } from "./game/scene-elements";
 import { Clock, DefaultLoadingManager, PCFSoftShadowMap, Scene, SRGBColorSpace, WebGLRenderer } from "three";
 import { renderFps } from "./game/fps-overlay";
+import { createWorldAsync } from "./game/level";
+import { GameServer } from "./game/game-server";
 
 // Required for Github Pages deployment
 DefaultLoadingManager.setURLModifier((url) => {
@@ -53,11 +53,14 @@ async function init() {
     await createBackground(scene, renderer);
     await createLightsAsync(scene, renderer);
 
-    const world = await createWorldAsync(scene);
+    const singlePlayer = getRole() == undefined;
+    const world = await createWorldAsync(scene, singlePlayer ? 1 : 2);
     window.addEventListener("pointerdown", event => world.handlePointerEvent(event, camera, renderer));
 
-    const server = await createServerAsync();
-    if (server) {
+    if (!singlePlayer) {
+        const server = isHost() ?
+            await GameServer.host() :
+            await GameServer.join();
         world.attachServer(server);
     }
 

@@ -1,78 +1,40 @@
 import { Pawn } from "./pawn";
 import { GameServer } from "./game-server";
 import { createAction, type PlayerAction } from "./player-action";
-import { Board, create8x8BoardAsync } from "./board";
+import { Board } from "./board";
 import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
-import { createCaptainHookAsync, createHadesAsync, createMaleficentAsync, createMulanAsync, createScarAsync, createThumperAsync } from "./heroes";
 import { type NetId, type Team } from "./primitives";
 import { localPlayer } from "./player";
 import { isClient, isHost } from "../device";
 
-export async function createWorldAsync(scene: Scene): Promise<World> {
-    const board = await create8x8BoardAsync(scene);
-    const world = new World(scene, board);
-
-    const teamA: Team = {
-        netId: 0,
-        pawns: [
-            await createScarAsync(),
-            await createHadesAsync(),
-            await createCaptainHookAsync()
-        ],
-        controlledBy: 'None',
-        controller: undefined
-    };
-
-    const teamB: Team = {
-        netId: 1,
-        pawns: [
-            await createMaleficentAsync(),
-            await createThumperAsync(),
-            await createMulanAsync()
-        ],
-        controlledBy: 'None',
-        controller: undefined
-    };
-
-    teamA.pawns.forEach((x, i) => {
-        x.setPosition(board.getTileAnchor(i + 2, 0));
-    });
-
-    teamB.pawns.forEach((x, i) => {
-        x.setPosition(board.getTileAnchor(i + 2, 7));
-    });
-
-    world.spawnTeam(teamA);
-    world.spawnTeam(teamB);
-
-    return world;
-}
-
 export class World {
     public readonly scene;
-    public startingTeamId: NetId = 0;
+    public readonly board: Board;
+    server?: GameServer;
+    private history: PlayerAction[] = [];
     private pawns = new Map<NetId, Pawn>();
     private teamsById = new Map<NetId, Team>;
     private get teams(): Team[] { return [...this.teamsById.values()]; }
-    private get localTeam(): Team | undefined {
-        return this.teams
-            .find(x => x.controller?.id === localPlayer.id);
+    private get turnOrder(): number[] { return this.teams.map(x => x.id) };
+    private turnCount: number = 0;
+    private get currentTurnTeamId(): NetId | undefined {
+        if (this.teams.length <= 0)
+            return undefined;
+        const mod = this.turnCount % this.turnOrder.length;
+        return this.turnOrder[mod];
+    }
+    private get currentTurnTeam(): Team | undefined {
+        if (this.currentTurnTeamId == undefined)
+            return undefined;
+        return this.teamsById.get(this.currentTurnTeamId);
     }
 
-    private get isStartingTeam(): boolean {
-        return this.localTeam?.netId == this.startingTeamId;
+    private get hasLocalTurn(): boolean {
+        if (this.currentTurnTeam == undefined)
+            return false;
+        return localPlayer.id == this.currentTurnTeam.controller?.id;
     }
-    private history: PlayerAction[] = [];
-    private get turnHistory() {
-        return this.history.filter(x => x.type == 'move');
-    }
-    private get isLocalTurn(): boolean {
-        return (!this.isStartingTeam && this.turnHistory.length % 2 == 1)
-            || (this.isStartingTeam && this.turnHistory.length % 2 == 0);
-    }
-    public readonly board: Board;
 
-    server?: GameServer;
 
     constructor(scene: Scene, board: Board) {
         this.scene = scene;
@@ -83,7 +45,7 @@ export class World {
     }
 
     spawnTeam(team: Team) {
-        let netId = team.netId;
+        let netId = team.id;
         if (netId) {
             if (this.teamsById.has(netId))
                 throw new Error(`Team with nedId ${netId} already exists.`);
@@ -91,9 +53,9 @@ export class World {
         else {
             const keys = [...this.teamsById.keys()];
             netId = keys.length === 0 ? 0 : Math.max(...keys) + 1;
-            team.netId = netId;
+            team.id = netId;
         }
-        this.teamsById.set(team.netId!, team);
+        this.teamsById.set(team.id!, team);
         for (let p of team.pawns)
             this.spawnPawn(p);
     }
@@ -136,6 +98,7 @@ export class World {
         this.history.push(action);
         switch (action.type) {
             case 'move': {
+                this.turnCount++;
                 const id = action.payload.pawnId;
                 const pawn = this.pawns.get(id);
                 if (!pawn)
@@ -148,11 +111,11 @@ export class World {
                     const response = createAction('assign_players', {
                         pairs: [{
                             player: localPlayer,
-                            teamId: this.teams[0]!.netId!
+                            teamId: this.teams[0]!.id!
                         },
                         {
                             player: action.payload.player,
-                            teamId: this.teams[1]!.netId!
+                            teamId: this.teams[1]!.id!
                         }]
                     });
                     this.playAction(response);
@@ -165,7 +128,6 @@ export class World {
                     const team = this.teamsById.get(teamId)
                     if (!team)
                         throw new Error(`Can't assign player as team with id ${teamId} doesn't exist.`);
-                    team.controlledBy = 'Player';
                     team.controller = p.player;
                 }
                 break;
@@ -175,7 +137,7 @@ export class World {
 
     handlePointerEvent(event: PointerEvent, camera: Camera, renderer: WebGLRenderer) {
 
-        if (event.button != 0 || !this.isLocalTurn)
+        if (event.button != 0 || !this.hasLocalTurn)
             return;
 
         const rect = renderer.domElement.getBoundingClientRect();
@@ -196,16 +158,21 @@ export class World {
     }
 
     private tileSelected(tile: Mesh) {
-        if (this.localTeam === undefined || this.localTeam.netId == undefined || this.localTeam.pawns.length <= 0)
+        if (!this.hasLocalTurn)
             return;
-        const hero = this.localTeam.pawns[0]!;
+        const team = this.currentTurnTeam;
+        if (!team)
+            return;
+        const hero = team.pawns[0];
+        if (!hero)
+            return;
         if (hero.netId == undefined)
             throw new Error(`Player pawn ${hero.name} is missing a nedId.`);
         const targetPosition = tile.getWorldPosition(new Vector3());
         const move = createAction('move', {
-            turn: 0,
+            turn: this.turnCount,
             playerId: localPlayer.id,
-            teamId: this.localTeam.netId,
+            teamId: team.id,
             pawnId: hero.netId,
             target: targetPosition
         })

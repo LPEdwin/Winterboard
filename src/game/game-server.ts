@@ -21,15 +21,6 @@ type Events = {
     ready: () => void
 }
 
-export async function createServerAsync(): Promise<GameServer | undefined> {
-    const role = getRole();
-    switch (role) {
-        case 'client': return GameServer.join();
-        case 'host': return GameServer.host();
-        case undefined: undefined;
-    }
-}
-
 export class GameServer {
 
     static readonly baseId = 'lpedwin_winterboard'
