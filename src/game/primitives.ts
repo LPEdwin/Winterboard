@@ -10,8 +10,7 @@ export function fromVector3(v: Vector3) { return { x: v.x, y: v.y } }
 export type NetId = number;
 
 export type Team = {
-    netId: NetId | undefined,
+    id: NetId,
     pawns: Pawn[],
-    controlledBy: 'None' | 'Ai' | 'Player',
     controller: Player | undefined
 }
