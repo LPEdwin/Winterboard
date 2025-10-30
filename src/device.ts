@@ -3,7 +3,8 @@ const r = new URLSearchParams(location.search).get('role');
 const role: Role | undefined = r === 'host' || r === 'client' ? r : undefined;
 
 export const getRole = () => role;
-
+export const isClient = () => role == 'client';
+export const isHost = () => role == 'host';
 
 let _isMobile: boolean | undefined;
 
