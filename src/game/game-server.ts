@@ -19,7 +19,7 @@ export class GameServer {
     private static readonly baseUri = 'lpedwin_winterboard'
     private _hostName: string = '';
     private get peerUri(): string { return GameServer.buildPeerUri(this._hostName); }
-    private conn: DataConnection | undefined = undefined;
+    private connections = new Set<DataConnection>;
     private peer?: Peer;
     private config: PeerOptions | undefined;
     private listeners: { [k in keyof Events]?: Set<Events[k]> } = {}
@@ -57,12 +57,12 @@ export class GameServer {
             conn.on('data', d => server.emit('action', d as PlayerAction));
             conn.on('close', () => {
                 console.log('Connection closed.');
-                if (server.conn === conn) server.conn = undefined;
+                server.connections.delete(conn);
             });
             conn.on('error', e => console.error('Connection error', e));
             conn.on('open', () => {
                 console.log('Client connected with id', conn.peer);
-                server.conn = conn;
+                server.connections.add(conn);
             });
         });
 
@@ -87,14 +87,13 @@ export class GameServer {
             conn.on('data', d => server.emit('action', d as PlayerAction));
             conn.on('close', () => {
                 console.log('Connection closed.');
-                if (server.conn === conn)
-                    server.conn = undefined;
+                server.connections.delete(conn);
             });
             conn.on('error', e => console.error('Conn error', e));
 
             conn.on('open', () => {
                 console.log('Client connection opened.');
-                server.conn = conn;
+                server.connections.add(conn);
                 server.emit('ready');
             });
         });
@@ -103,14 +102,16 @@ export class GameServer {
     }
 
     send(action: PlayerAction) {
-        if (this.conn)
-            this.conn.send(action)
-        else
+        if (this.connections.size <= 0) {
             console.log("No data connection set.");
+            return;
+        }
+        this.connections.forEach(x => x.send(action));
     }
 
     dispose() {
-        this.conn?.close();
+        this.connections.forEach(x => x.close());
+        this.connections.clear();
         this.peer?.destroy();
     }
 }
