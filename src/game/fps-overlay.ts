@@ -31,7 +31,6 @@ function ensureFpsDiv() {
             left: "8px",
             padding: "4px 8px",
             fontFamily: "monospace",
-            fontSize: isMobile() ? "3rem" : "14px",
             background: "rgba(0,0,0,0.5)",
             color: "#fff",
             borderRadius: "6px",
