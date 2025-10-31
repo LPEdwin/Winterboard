@@ -1,5 +1,5 @@
 // npx --yes -p peer peerjs --port 9000 --key peerjs
-export const PEER_JS_CONFIG = {
+export const LOCAL_PEER_SERVER_CONFIG = {
     host: '127.0.0.1',
     port: 9000,
     path: '/',

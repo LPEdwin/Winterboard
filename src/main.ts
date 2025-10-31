@@ -1,4 +1,4 @@
-import { getRole, isHost, isMobile } from "./device";
+import { getHostFromUrl, getRole, isClient, isHost, isMobile, useLocalServer } from "./device";
 import {
     createCamera,
     createControls,
@@ -10,6 +10,8 @@ import { Clock, DefaultLoadingManager, PCFSoftShadowMap, Scene, SRGBColorSpace, 
 import { renderFps } from "./game/fps-overlay";
 import { createWorldAsync } from "./game/level";
 import { GameServer } from "./game/game-server";
+import { getNewHashId } from "./game/primitives";
+import { LOCAL_PEER_SERVER_CONFIG } from "./environment.dev";
 
 // Required for Github Pages deployment
 DefaultLoadingManager.setURLModifier((url) => {
@@ -53,14 +55,23 @@ async function init() {
     await createBackground(scene, renderer);
     await createLightsAsync(scene, renderer);
 
-    const singlePlayer = getRole() == undefined;
+    const invalidRole = isClient() && !getHostFromUrl();
+    if (invalidRole)
+        console.warn(`Client role set but missing host name.`)
+    const singlePlayer = getRole() == undefined || invalidRole;
+
     const world = await createWorldAsync(scene, singlePlayer ? 1 : 2);
     window.addEventListener("pointerdown", event => world.handlePointerEvent(event, camera, renderer));
 
     if (!singlePlayer) {
+        const config = useLocalServer() ? LOCAL_PEER_SERVER_CONFIG : undefined;
+        if (useLocalServer())
+            console.log('Run "npx --yes -p peer peerjs --port 9000 --key peerjs" for local peer server use.');
+        let hostId = getHostFromUrl() ?? getNewHashId('xxxxx');
+        console.log(`Server name is ${hostId}.`);
         const server = isHost() ?
-            await GameServer.host() :
-            await GameServer.join();
+            await GameServer.host(hostId, config) :
+            await GameServer.join(hostId, config);
         world.attachServer(server);
     }
 

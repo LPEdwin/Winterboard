@@ -1,6 +1,6 @@
 import { Peer, type PeerOptions, type DataConnection } from 'peerjs';
 import { type PlayerAction } from "./player-action";
-import { getRole } from "../device";
+import { getNewHashId } from './primitives';
 
 type Events = {
     action: (action: PlayerAction) => void,
@@ -9,11 +9,16 @@ type Events = {
 
 export class GameServer {
 
-    private static readonly baseId = 'lpedwin_winterboard'
-    private static readonly matchId: string = 'xDg5LkoLfF';
-    private static get playerId(): string { return getRole() == 'client' ? 'Player2' : 'Player1'; }
-    private static readonly hostId: string = this.baseId + `_${this.matchId}_Player1`;
-    private static get id() { return this.baseId + `_${this.matchId}_${this.playerId}`; }
+    on<K extends keyof Events>(k: K, fn: Events[K]): () => void {
+        ((this.listeners[k] as Set<Events[K]>) ??= new Set()).add(fn);
+        return () => this.listeners[k]!.delete(fn);
+    }
+
+    get ishost() { return this._isHost; }
+    private _isHost = false;
+    private static readonly baseUri = 'lpedwin_winterboard'
+    private _hostName: string = '';
+    private get peerUri(): string { return GameServer.buildPeerUri(this._hostName); }
     private conn: DataConnection | undefined = undefined;
     private peer?: Peer;
     private config: PeerOptions | undefined;
@@ -26,25 +31,27 @@ export class GameServer {
         });
     }
 
-    on<K extends keyof Events>(k: K, fn: Events[K]): () => void {
-        ((this.listeners[k] as Set<Events[K]>) ??= new Set()).add(fn);
-        return () => this.listeners[k]!.delete(fn);
+    constructor(peerConfig?: PeerOptions) {
+        this.config = peerConfig;
     }
 
-    constructor(config?: PeerOptions) {
-        this.config = config;
+    static buildPeerUri(peerName: string) {
+        return GameServer.baseUri + '_' + peerName;
     }
 
-    static async host(): Promise<GameServer> {
-        const server = new GameServer();
-        const host = new Peer(this.id, server.config);
-        server.peer = host;
-        host.on('open', id => console.log('Host peer created with id', id));
-        host.on('error', err => console.error('Host error', err));
-        host.on('disconnected', () => console.warn('Host disconnected'));
-        host.on('close', () => console.warn('Host closed'));
+    static async host(hostName: string, peerConfig?: PeerOptions): Promise<GameServer> {
+        const server = new GameServer(peerConfig);
+        server._isHost = true;
+        server._hostName = hostName;
 
-        host.on('connection', conn => {
+        const peer = new Peer(server.peerUri, server.config);
+        server.peer = peer;
+        peer.on('open', id => console.log('Host peer created with id', id));
+        peer.on('error', err => console.error('Host error', err));
+        peer.on('disconnected', () => console.warn('Host disconnected'));
+        peer.on('close', () => console.warn('Host closed'));
+
+        peer.on('connection', conn => {
             console.log(`Host is ready.`);
             server.emit('ready');
             conn.on('data', d => server.emit('action', d as PlayerAction));
@@ -53,7 +60,6 @@ export class GameServer {
                 if (server.conn === conn) server.conn = undefined;
             });
             conn.on('error', e => console.error('Connection error', e));
-
             conn.on('open', () => {
                 console.log('Client connected with id', conn.peer);
                 server.conn = conn;
@@ -63,9 +69,10 @@ export class GameServer {
         return server;
     }
 
-    static async join(): Promise<GameServer> {
-        const server = new GameServer();
-        const client = new Peer(this.id, server.config);
+    static async join(hostName: string, peerConfig?: PeerOptions, clientName?: string): Promise<GameServer> {
+        const server = new GameServer(peerConfig);
+        server._hostName = clientName ?? getNewHashId('xxxxx');
+        const client = new Peer(server.peerUri, server.config);
 
         server.peer = client;
 
@@ -75,12 +82,13 @@ export class GameServer {
         client.on('close', () => console.warn('Client closed'));
 
         client.on('open', () => {
-            const conn = client.connect(this.hostId);
+            const conn = client.connect(GameServer.buildPeerUri(hostName));
 
             conn.on('data', d => server.emit('action', d as PlayerAction));
             conn.on('close', () => {
                 console.log('Connection closed.');
-                if (server.conn === conn) server.conn = undefined;
+                if (server.conn === conn)
+                    server.conn = undefined;
             });
             conn.on('error', e => console.error('Conn error', e));
 

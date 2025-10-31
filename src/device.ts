@@ -1,3 +1,9 @@
+const localServer = new URLSearchParams(location.search).get('server');
+export const useLocalServer = () => !!localServer;
+
+const hostName = new URLSearchParams(location.search).get('host');
+export const getHostFromUrl = () => hostName;
+
 export type Role = 'host' | 'client';
 const r = new URLSearchParams(location.search).get('role');
 const role: Role | undefined = r === 'host' || r === 'client' ? r : undefined;
