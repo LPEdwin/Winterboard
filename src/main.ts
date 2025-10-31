@@ -12,8 +12,8 @@ import { createLevelAsync } from "./game/level";
 import { GameServer } from "./game/game-server";
 import { getNewHashId } from "./game/primitives";
 import { LOCAL_PEER_SERVER_CONFIG } from "./environment.dev";
-import GUI from "three/examples/jsm/libs/lil-gui.module.min.js";
 import { localPlayer } from "./game/player";
+import GUI from 'lil-gui';
 
 // Required for Github Pages deployment
 DefaultLoadingManager.setURLModifier((url) => {
