@@ -3,7 +3,7 @@ import { toVector3, type NetId, type Vec3 } from "./primitives";
 
 
 export class Pawn {
-    netId: NetId | undefined = undefined;
+    netId: NetId = -1;
     name?: string;
     mesh?: Mesh;
     moveSpeed: number = 1.0;

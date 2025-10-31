@@ -3,9 +3,10 @@ import { GameServer } from "./game-server";
 import { createAction, type PlayerAction } from "./player-action";
 import { Board } from "./board";
 import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
-import { type NetId, type Team } from "./primitives";
+import { type NetId, } from "./primitives";
 import { localPlayer } from "./player";
 import { isClient, isHost } from "../device";
+import type { Team } from "./team";
 
 export class World {
     public readonly scene;
@@ -17,6 +18,7 @@ export class World {
     private get teams(): Team[] { return [...this.teamsById.values()]; }
     private get turnOrder(): number[] { return this.teams.map(x => x.id) };
     private turnCount: number = 0;
+    
     private get currentTurnTeamId(): NetId | undefined {
         if (this.teams.length <= 0)
             return undefined;
@@ -45,35 +47,29 @@ export class World {
     }
 
     spawnTeam(team: Team) {
-        let netId = team.id;
-        if (netId) {
-            if (this.teamsById.has(netId))
-                throw new Error(`Team with nedId ${netId} already exists.`);
-        }
-        else {
-            const keys = [...this.teamsById.keys()];
-            netId = keys.length === 0 ? 0 : Math.max(...keys) + 1;
-            team.id = netId;
-        }
+        team.id = this.getNewTeamId();
         this.teamsById.set(team.id!, team);
         for (let p of team.pawns)
             this.spawnPawn(p);
     }
 
+    private getNewTeamId(): NetId {
+        const keys = [...this.teamsById.keys()];
+        const netId = keys.length === 0 ? 0 : Math.max(...keys) + 1;
+        return netId;
+    }
+
     spawnPawn(pawn: Pawn) {
-        let netId = pawn.netId;
-        if (netId) {
-            if (this.pawns.has(netId))
-                throw new Error(`Pawn with nedId ${netId} already exists.`);
-        }
-        else {
-            const keys = [...this.pawns.keys()];
-            netId = keys.length === 0 ? 1 : Math.max(...keys) + 1;
-            pawn.netId = netId;
-        }
-        this.pawns.set(pawn.netId!, pawn);
+        pawn.netId = this.getNewPawnId();
+        this.pawns.set(pawn.netId, pawn);
         if (pawn.mesh)
             this.scene.add(pawn.mesh)
+    }
+
+    private getNewPawnId(): NetId {
+        const keys = [...this.pawns.keys()];
+        const netId = keys.length === 0 ? 1 : Math.max(...keys) + 1;
+        return netId;
     }
 
     attachServer(server: GameServer) {
@@ -166,7 +162,7 @@ export class World {
         const hero = team.pawns[0];
         if (!hero)
             return;
-        if (hero.netId == undefined)
+        if (hero.netId < 0)
             throw new Error(`Player pawn ${hero.name} is missing a nedId.`);
         const targetPosition = tile.getWorldPosition(new Vector3());
         const move = createAction('move', {

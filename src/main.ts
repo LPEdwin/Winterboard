@@ -8,7 +8,7 @@ import {
 } from "./game/scene-elements";
 import { Clock, DefaultLoadingManager, PCFSoftShadowMap, Scene, SRGBColorSpace, WebGLRenderer } from "three";
 import { renderFps } from "./game/fps-overlay";
-import { createWorldAsync } from "./game/level";
+import { createLevelAsync } from "./game/level";
 import { GameServer } from "./game/game-server";
 import { getNewHashId } from "./game/primitives";
 import { LOCAL_PEER_SERVER_CONFIG } from "./environment.dev";
@@ -60,7 +60,7 @@ async function init() {
         console.warn(`Client role set but missing host name.`)
     const singlePlayer = getRole() == undefined || invalidRole;
 
-    const world = await createWorldAsync(scene, singlePlayer ? 1 : 2);
+    const world = await createLevelAsync(scene, singlePlayer ? 1 : 2);
     window.addEventListener("pointerdown", event => world.handlePointerEvent(event, camera, renderer));
 
     if (!singlePlayer) {
