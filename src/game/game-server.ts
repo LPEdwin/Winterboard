@@ -14,7 +14,8 @@ export class GameServer {
         return () => this.listeners[k]!.delete(fn);
     }
 
-    get ishost() { return this._isHost; }
+    get isClient() { return !this._isHost; }
+    get isHost() { return this._isHost; }
     private _isHost = false;
     private static readonly baseUri = 'lpedwin_winterboard'
     private _hostName: string = '';

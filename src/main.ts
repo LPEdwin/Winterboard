@@ -12,6 +12,8 @@ import { createLevelAsync } from "./game/level";
 import { GameServer } from "./game/game-server";
 import { getNewHashId } from "./game/primitives";
 import { LOCAL_PEER_SERVER_CONFIG } from "./environment.dev";
+import GUI from "three/examples/jsm/libs/lil-gui.module.min.js";
+import { localPlayer } from "./game/player";
 
 // Required for Github Pages deployment
 DefaultLoadingManager.setURLModifier((url) => {
@@ -20,9 +22,50 @@ DefaultLoadingManager.setURLModifier((url) => {
     return import.meta.env.BASE_URL + clean;
 });
 
-const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+let autoInit = !(getRole() === undefined);
+
+const settings = {
+    singlePlayer: isClient() && !getHostFromUrl(),
+    hostId: getHostFromUrl() ?? getNewHashId('xxxxx'),
+    isHost: isHost(),
+    useLocalServer: useLocalServer()
+}
+
+if (!autoInit) {
+    const gui = new GUI();
+    gui.domElement.addEventListener('pointerdown', e => e.stopPropagation());
+
+    gui.add(localPlayer, 'name').name('Name');
+
+    const mult = gui.addFolder('Game');
+    const actions = {
+        solo: () => {
+            settings.singlePlayer = true;
+            settings.isHost = false;
+            init().catch(console.error);
+        },
+        host: () => {
+            settings.singlePlayer = false;
+            settings.isHost = true;
+            init().catch(console.error);
+        },
+        join: () => {
+            settings.singlePlayer = false;
+            settings.isHost = false;
+            init().catch(console.error);
+        },
+    };
+    mult.add(settings, 'useLocalServer').name('Dev Server');
+    mult.add(settings, 'hostId').name('Host');
+    mult.add(actions, 'solo').name('Solo Game');
+    mult.add(actions, 'host').name('Host Game');
+    mult.add(actions, 'join').name('Join Game');
+}
+
 
 // Renderer setup
+const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
+
 const renderer = new WebGLRenderer({
     canvas,
     antialias: !isMobile(),
@@ -55,23 +98,17 @@ async function init() {
     await createBackground(scene, renderer);
     await createLightsAsync(scene, renderer);
 
-    const invalidRole = isClient() && !getHostFromUrl();
-    if (invalidRole)
-        console.warn(`Client role set but missing host name.`)
-    const singlePlayer = getRole() == undefined || invalidRole;
-
-    const world = await createLevelAsync(scene, singlePlayer ? 1 : 2);
+    const world = await createLevelAsync(scene, settings.singlePlayer ? 1 : 2);
     window.addEventListener("pointerdown", event => world.handlePointerEvent(event, camera, renderer));
 
-    if (!singlePlayer) {
-        const config = useLocalServer() ? LOCAL_PEER_SERVER_CONFIG : undefined;
+    if (!settings.singlePlayer) {
+        const config = settings.useLocalServer ? LOCAL_PEER_SERVER_CONFIG : undefined;
         if (useLocalServer())
             console.log('Run "npx --yes -p peer peerjs --port 9000 --key peerjs" for local peer server use.');
-        let hostId = getHostFromUrl() ?? getNewHashId('xxxxx');
-        console.log(`Server name is ${hostId}.`);
-        const server = isHost() ?
-            await GameServer.host(hostId, config) :
-            await GameServer.join(hostId, config);
+        console.log(`Host name is ${settings.hostId}.`);
+        const server = settings.isHost ?
+            await GameServer.host(settings.hostId, config) :
+            await GameServer.join(settings.hostId, config);
         world.attachServer(server);
     }
 
@@ -96,4 +133,5 @@ async function init() {
     Update();
 }
 
-init().catch(console.error);
+if (autoInit)
+    init().catch(console.error);

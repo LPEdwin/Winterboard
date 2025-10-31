@@ -5,7 +5,6 @@ import { Board } from "./board";
 import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
 import { type NetId, } from "./primitives";
 import { localPlayer } from "./player";
-import { isClient, isHost } from "../device";
 import type { Team } from "./team";
 
 export class World {
@@ -18,7 +17,7 @@ export class World {
     private get teams(): Team[] { return [...this.teamsById.values()]; }
     private get turnOrder(): number[] { return this.teams.map(x => x.id) };
     private turnCount: number = 0;
-    
+
     private get currentTurnTeamId(): NetId | undefined {
         if (this.teams.length <= 0)
             return undefined;
@@ -77,7 +76,7 @@ export class World {
         server.on('action', action => this.playActionLocal(action));
         window.addEventListener('pagehide', () => server.dispose(), { once: true });
 
-        if (isClient()) {
+        if (server.isClient) {
             const unsubscribe = server.on('ready', () => {
                 server.send(createAction('join_request', { player: localPlayer }));
                 unsubscribe();
@@ -103,7 +102,7 @@ export class World {
                 break;
             }
             case 'join_request': {
-                if (isHost()) {
+                if (this.server?.isHost === true) {
                     const response = createAction('assign_players', {
                         pairs: [{
                             player: localPlayer,
