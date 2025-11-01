@@ -45,7 +45,6 @@ export class World {
     attachServer(server: GameServer) {
         this.server = server;
         server.on('action', action => this.playActionLocal(action));
-        window.addEventListener('pagehide', () => server.dispose(), { once: true });
 
         if (server.isClient) {
             const unsubscribe = server.on('ready', () => {
