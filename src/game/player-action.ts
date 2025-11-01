@@ -11,7 +11,6 @@ export type Actions = {
     attack: ActionMeta,
     move: ActionMeta & { pawnId: NetId, target: Vec3 },
     none: never,
-    join_request: { player: Player },
     assign_players: { pairs: { player: Player, teamId: NetId }[] }
 }
 

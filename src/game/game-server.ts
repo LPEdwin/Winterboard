@@ -1,5 +1,5 @@
 import { type DataConnection, Peer, type PeerOptions } from 'peerjs';
-import { createAction, type PlayerAction } from "./player-action";
+import { type PlayerAction } from "./player-action";
 import { getNewHashId } from './primitives';
 import { localPlayer, type Player } from './player';
 
@@ -7,6 +7,11 @@ type Events = {
     action: (action: PlayerAction) => void,
     ready: () => void
 }
+
+type NetMessage =
+    { type: 'player_info', payload: Player } |
+    { type: 'player_action', payload: PlayerAction };
+
 
 export class GameServer {
 
@@ -80,13 +85,7 @@ export class GameServer {
                 console.log('Client connected with id', conn.peer);
                 server.connections.add(conn);
             });
-            conn.on('data', d => {
-                const action = d as PlayerAction;
-                if (action.type === 'join_request') {
-                    server._playersByPeerId.set(conn.peer, action.payload.player);
-                }
-                server.emit('action', d as PlayerAction);
-            });
+            conn.on('data', d => server.processMessage(d, conn));
             conn.on('close', () => {
                 console.log('Connection closed.');
                 server.connections.delete(conn);
@@ -113,7 +112,7 @@ export class GameServer {
         client.on('open', () => {
             const conn = client.connect(GameServer.buildPeerUri(hostName));
 
-            conn.on('data', d => server.emit('action', d as PlayerAction));
+            conn.on('data', d => server.processMessage(d, conn));
             conn.on('close', () => {
                 console.log('Connection closed.');
                 server.connections.delete(conn);
@@ -123,7 +122,7 @@ export class GameServer {
             conn.on('open', () => {
                 console.log('Client connection opened.');
                 server.connections.add(conn);
-                server.send(createAction('join_request', { player: localPlayer }));
+                server.internalSend({ type: 'player_info', payload: localPlayer });
                 server.emit('ready');
             });
         });
@@ -131,12 +130,31 @@ export class GameServer {
         return server;
     }
 
-    send(action: PlayerAction) {
+    private processMessage(data: unknown, connection: DataConnection) {
+        const m = data as NetMessage;
+        switch (m.type) {
+            case 'player_info':
+                this._playersByPeerId.set(connection.peer, m.payload);
+                break;
+            case 'player_action':
+                this.emit('action', m.payload);
+                break;
+            default:
+                console.warn('Unknown NetMessage type', m);
+                break;
+        }
+    }
+
+    private internalSend(message: NetMessage) {
         if (this.connections.size <= 0) {
-            console.log("No data connection set.");
+            console.log("No connections available.");
             return;
         }
-        this.connections.forEach(x => x.send(action));
+        this.connections.forEach(x => x.send(message));
+    }
+
+    send(action: PlayerAction) {
+        this.internalSend({ type: 'player_action', payload: action })
     }
 
     dispose() {
