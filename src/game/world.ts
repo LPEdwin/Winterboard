@@ -3,7 +3,7 @@ import { GameServer } from "./game-server";
 import { createAction, type PlayerAction } from "./player-action";
 import { Board } from "./board";
 import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
-import { type NetId, } from "./primitives";
+import { getNewNetId, type NetId, } from "./primitives";
 import { localPlayer } from "./player";
 import type { Team } from "./team";
 
@@ -29,29 +29,17 @@ export class World {
     }
 
     spawnTeam(team: Team) {
-        team.id = this.getNewTeamId();
+        team.id = getNewNetId(this.teams.map(x => x.id));
         this.teamsById.set(team.id, team);
         for (let p of team.pawns)
             this.spawnPawn(p);
     }
 
-    private getNewTeamId(): NetId {
-        const keys = [...this.teamsById.keys()];
-        const netId = keys.length === 0 ? 0 : Math.max(...keys) + 1;
-        return netId;
-    }
-
     spawnPawn(pawn: Pawn) {
-        pawn.netId = this.getNewPawnId();
-        this.pawnsById.set(pawn.netId, pawn);
+        pawn.id = getNewNetId(this.pawns.map(x => x.id));
+        this.pawnsById.set(pawn.id, pawn);
         if (pawn.mesh)
             this.scene.add(pawn.mesh)
-    }
-
-    private getNewPawnId(): NetId {
-        const keys = [...this.pawnsById.keys()];
-        const netId = keys.length === 0 ? 1 : Math.max(...keys) + 1;
-        return netId;
     }
 
     attachServer(server: GameServer) {
@@ -164,7 +152,7 @@ export class World {
         const move = createAction('move', {
             turn: this.turnCount,
             playerId: localPlayer.id,
-            pawnId: hero.netId,
+            pawnId: hero.id,
             target: targetPosition
         })
         this.playAction(move);

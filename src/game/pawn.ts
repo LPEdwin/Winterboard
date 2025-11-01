@@ -4,7 +4,7 @@ import type { Team } from "./team";
 
 
 export class Pawn {
-    netId: NetId = -1;
+    id: NetId = -1;
     team?: Team;
     name?: string;
     mesh?: Mesh;

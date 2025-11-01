@@ -9,6 +9,11 @@ export function fromVector3(v: Vector3) { return { x: v.x, y: v.y } }
 export type NetId = number;
 export type HashId = string;
 
+
+export function getNewNetId(usedIds: NetId[]): NetId {
+    return usedIds.length === 0 ? 0 : Math.max(...usedIds) + 1;
+}
+
 const ALPH = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 function randChar(): string {
