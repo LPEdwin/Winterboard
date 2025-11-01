@@ -1,10 +1,9 @@
-import type { HashId, Player } from "./player";
-import type { NetId, Vec3 } from "./primitives";
+import type { Player } from "./player";
+import type { HashId, NetId, Vec3 } from "./primitives";
 
 export type ActionMeta = {
     turn: number,
     playerId: HashId,
-    teamId: NetId,
 }
 
 export type Actions = {

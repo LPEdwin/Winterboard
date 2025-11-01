@@ -1,9 +1,11 @@
 import type { Mesh, Vector3 } from "three";
 import { toVector3, type NetId, type Vec3 } from "./primitives";
+import type { Team } from "./team";
 
 
 export class Pawn {
     netId: NetId = -1;
+    team?: Team;
     name?: string;
     mesh?: Mesh;
     moveSpeed: number = 1.0;

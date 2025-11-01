@@ -14,6 +14,17 @@ export class GameServer {
         return () => this.listeners[k]!.delete(fn);
     }
 
+    once<K extends keyof Events>(k: K, fn: Events[K]): () => void {
+        let off: () => void = () => { };
+        const wrapper = ((...args: Parameters<Events[K]>) => {
+            off();
+            (fn as any)(...args);
+        }) as Events[K];
+
+        off = this.on(k, wrapper);
+        return off;
+    }
+
     get isClient() { return !this._isHost; }
     get isHost() { return this._isHost; }
     private _isHost = false;
@@ -34,6 +45,7 @@ export class GameServer {
 
     constructor(peerConfig?: PeerOptions) {
         this.config = peerConfig;
+        window.addEventListener('pagehide', () => this.dispose(), { once: true });
     }
 
     static buildPeerUri(peerName: string) {

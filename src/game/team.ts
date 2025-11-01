@@ -8,6 +8,14 @@ export class Team {
     controller: Player | undefined
 
     constructor(pawns: Pawn[]) {
-        this.pawns = [...pawns];
+        this.addPawns(pawns)
+    }
+
+    addPawns(pawns: Pawn[]) {
+        if (pawns.some(x => x.team)) {
+            throw Error('Pawns are already attached to a team.');
+        }
+        pawns.forEach(x => x.team = this);
+        this.pawns.push(...pawns)
     }
 }
