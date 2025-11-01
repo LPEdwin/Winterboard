@@ -45,13 +45,28 @@ export class World {
     attachServer(server: GameServer) {
         this.server = server;
         server.on('action', action => this.playActionLocal(action));
+    }
 
-        if (server.isClient) {
-            const unsubscribe = server.on('ready', () => {
-                server.send(createAction('join_request', { player: localPlayer }));
-                unsubscribe();
-            })
+    private updateConnectingState() {
+        if (!this.server?.isHost)
+            return;
+        const connectedPlayers = this.server?.connectedPlayers.length;
+        const requiredPlayer = this.teams.filter(x => x.controller === undefined).length
+        if (connectedPlayers == requiredPlayer) {
+            this.assignPlayers();
         }
+    }
+
+    private assignPlayers() {
+        if (!this.server?.isHost)
+            return;
+        const action = createAction('assign_players', {
+            pairs: [...this.server!.connectedPlayers.map((p, i) => ({
+                player: p,
+                teamId: this.teams[i]!.id
+            }))]
+        });
+        this.playAction(action);
     }
 
     matchIsReady(): boolean {
@@ -59,7 +74,7 @@ export class World {
     }
 
     hasLocalTurn(): boolean {
-        return this.getCurrentHero()?.team?.controller === localPlayer;
+        return this.getCurrentHero()?.team?.controller?.id === localPlayer.id;
     }
 
     canHandleInput(): boolean {
@@ -88,22 +103,6 @@ export class World {
                 if (!pawn)
                     throw new Error(`Pawn with id ${id} doesn't exist.`);
                 pawn.setTargetPosition(action.payload.target);
-                break;
-            }
-            case 'join_request': {
-                if (this.server?.isHost === true) {
-                    const response = createAction('assign_players', {
-                        pairs: [{
-                            player: localPlayer,
-                            teamId: this.teams[0]!.id!
-                        },
-                        {
-                            player: action.payload.player,
-                            teamId: this.teams[1]!.id!
-                        }]
-                    });
-                    this.playAction(response);
-                }
                 break;
             }
             case 'assign_players': {
@@ -158,6 +157,8 @@ export class World {
     }
 
     update(delta: number) {
+        if (!this.matchIsReady())
+            this.updateConnectingState()
         for (let p of this.pawnsById.values()) {
             p.update(delta);
         }

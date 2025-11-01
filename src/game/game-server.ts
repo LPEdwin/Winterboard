@@ -1,6 +1,7 @@
-import { Peer, type PeerOptions, type DataConnection } from 'peerjs';
-import { type PlayerAction } from "./player-action";
+import { type DataConnection, Peer, type PeerOptions } from 'peerjs';
+import { createAction, type PlayerAction } from "./player-action";
 import { getNewHashId } from './primitives';
+import { localPlayer, type Player } from './player';
 
 type Events = {
     action: (action: PlayerAction) => void,
@@ -25,12 +26,18 @@ export class GameServer {
         return off;
     }
 
+    get connectedPlayers(): Player[] {
+        return [...this._playersByPeerId.values()];
+    }
+    private _playersByPeerId = new Map<string, Player>();
+
     get isClient() { return !this._isHost; }
     get isHost() { return this._isHost; }
+
     private _isHost = false;
     private static readonly baseUri = 'lpedwin_winterboard'
     private _hostName: string = '';
-    private get peerUri(): string { return GameServer.buildPeerUri(this._hostName); }
+    private get peerId(): string { return GameServer.buildPeerUri(this._hostName); }
     private connections = new Set<DataConnection>;
     private peer?: Peer;
     private config: PeerOptions | undefined;
@@ -57,26 +64,35 @@ export class GameServer {
         server._isHost = true;
         server._hostName = hostName;
 
-        const peer = new Peer(server.peerUri, server.config);
+        const peer = new Peer(server.peerId, server.config);
         server.peer = peer;
-        peer.on('open', id => console.log('Host peer created with id', id));
-        peer.on('error', err => console.error('Host error', err));
-        peer.on('disconnected', () => console.warn('Host disconnected'));
-        peer.on('close', () => console.warn('Host closed'));
+        server._playersByPeerId.set(server.peerId, localPlayer);
+        peer.on('open', id => {
+            console.log('Host peer created with id.', id);
+            server.emit('ready');
+        });
+        peer.on('error', err => console.error('Host error.', err));
+        peer.on('disconnected', () => console.warn('Host disconnected.'));
+        peer.on('close', () => console.warn('Host closed.'));
 
         peer.on('connection', conn => {
-            console.log(`Host is ready.`);
-            server.emit('ready');
-            conn.on('data', d => server.emit('action', d as PlayerAction));
-            conn.on('close', () => {
-                console.log('Connection closed.');
-                server.connections.delete(conn);
-            });
-            conn.on('error', e => console.error('Connection error', e));
             conn.on('open', () => {
                 console.log('Client connected with id', conn.peer);
                 server.connections.add(conn);
             });
+            conn.on('data', d => {
+                const action = d as PlayerAction;
+                if (action.type === 'join_request') {
+                    server._playersByPeerId.set(conn.peer, action.payload.player);
+                }
+                server.emit('action', d as PlayerAction);
+            });
+            conn.on('close', () => {
+                console.log('Connection closed.');
+                server.connections.delete(conn);
+                server._playersByPeerId.delete(conn.peer)
+            });
+            conn.on('error', e => console.error('Connection error', e));
         });
 
         return server;
@@ -85,7 +101,7 @@ export class GameServer {
     static async join(hostName: string, peerConfig?: PeerOptions, clientName?: string): Promise<GameServer> {
         const server = new GameServer(peerConfig);
         server._hostName = clientName ?? getNewHashId('xxxxx');
-        const client = new Peer(server.peerUri, server.config);
+        const client = new Peer(server.peerId, server.config);
 
         server.peer = client;
 
@@ -107,6 +123,7 @@ export class GameServer {
             conn.on('open', () => {
                 console.log('Client connection opened.');
                 server.connections.add(conn);
+                server.send(createAction('join_request', { player: localPlayer }));
                 server.emit('ready');
             });
         });
