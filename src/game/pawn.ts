@@ -1,6 +1,7 @@
 import type { Mesh, Vector3 } from "three";
 import { toVector3, type NetId, type Vec3 } from "./primitives";
 import type { Team } from "./team";
+import type { Player } from "./player";
 
 
 export class Pawn {
@@ -33,5 +34,13 @@ export class Pawn {
                 this.mesh!.position.lerp(this.currentTarget, step / dist);
             }
         }
+    }
+
+    getController(): Player | undefined {
+        return this.team?.controller;
+    }
+
+    isControlledBy(controller: Player): boolean {
+        return this.getController()?.id === controller.id;
     }
 }

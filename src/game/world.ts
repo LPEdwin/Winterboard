@@ -74,7 +74,7 @@ export class World {
     }
 
     hasLocalTurn(): boolean {
-        return this.getCurrentHero()?.team?.controller?.id === localPlayer.id;
+        return this.getCurrentHero()?.isControlledBy(localPlayer) ?? false;
     }
 
     canHandleInput(): boolean {
