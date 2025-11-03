@@ -131,10 +131,9 @@ export class World {
 
         const raycaster = new Raycaster();
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(this.board.tiles, false);
-
-        if (intersects.length > 0) {
-            const tile = intersects[0]?.object as Mesh;
+        const [hit] = raycaster.intersectObjects<Mesh>(this.board.tiles, false);
+        if (hit) {
+            const tile = hit.object;
             this.tileSelected(tile);
             this.board.highlightTile(tile);
         }
