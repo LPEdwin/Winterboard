@@ -28,13 +28,10 @@ export async function createHadesAsync(): Promise<Pawn> {
 
 export async function createHeroAsync(cardUrl: string, name: string, color: ColorRepresentation = 0x3333aa): Promise<Pawn> {
 
-    const pawn = new Pawn();
-    pawn.name = name;
-    const mesh = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as Mesh;    
+
+    const mesh = (await loadGLB("/models/card_holder.glb")).children[0]!.clone() as Mesh;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    pawn.mesh = mesh;
-    pawn.moveSpeed = 5.0;
 
     const mat = new MeshStandardMaterial({
         color: color,
@@ -60,10 +57,12 @@ export async function createHeroAsync(cardUrl: string, name: string, color: Colo
     );
 
     card.scale.multiplyScalar(1.0);
-    card.position.z -= 0.65;    
+    card.position.z -= 0.65;
     card.rotation.set(-Math.PI * 0.5, -Math.PI * 0.5, 0);
 
     mesh.add(card);
 
+    const pawn = new Pawn(name, mesh);
+    pawn.moveSpeed = 5.0;
     return pawn;
 }

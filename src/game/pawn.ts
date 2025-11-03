@@ -6,11 +6,17 @@ import type { Player } from "./player";
 
 export class Pawn {
     id: NetId = -1;
+    health: number = 100;
     team?: Team;
     name?: string;
-    mesh?: Mesh;
+    mesh: Mesh;
     moveSpeed: number = 1.0;
     currentTarget: Vector3 | null = null;
+
+    constructor(name: string, mesh: Mesh) {
+        this.name = name;
+        this.mesh = mesh;
+    }
 
     setPosition(position: Vec3) {
         this.mesh?.position.copy(toVector3(position));
@@ -21,17 +27,19 @@ export class Pawn {
     }
 
     update(delta: number) {
-        if (this.currentTarget) {
+        if (this.health <= 0) {
 
-            const pos = this.mesh!.position;
+        }
+        else if (this.currentTarget) {
+            const pos = this.mesh.position;
             const dist = pos.distanceTo(this.currentTarget);
             const step = this.moveSpeed * delta;
 
             if (dist <= step) {
-                this.mesh!.position.copy(this.currentTarget);
+                this.mesh.position.copy(this.currentTarget);
                 this.currentTarget = null;
             } else {
-                this.mesh!.position.lerp(this.currentTarget, step / dist);
+                this.mesh.position.lerp(this.currentTarget, step / dist);
             }
         }
     }
