@@ -2,6 +2,7 @@ import { Color, type Mesh, type MeshStandardMaterial, type Vector3 } from "three
 import { toVector3, type NetId, type Vec3 } from "./primitives";
 import type { Team } from "./team";
 import type { Player } from "./player";
+import { Fader } from "./fader";
 
 
 export class Pawn {
@@ -12,6 +13,8 @@ export class Pawn {
     mesh: Mesh;
     moveSpeed: number = 1.0;
     currentTarget: Vector3 | null = null;
+
+    private fader: Fader | undefined;
 
     constructor(name: string, mesh: Mesh) {
         this.name = name;
@@ -28,7 +31,8 @@ export class Pawn {
 
     update(delta: number) {
         if (this.health <= 0) {
-            (this.mesh.material as MeshStandardMaterial).color = new Color(0, 0, 0);
+            (this.fader ??= new Fader(this.mesh, 1)).update(delta);
+            this.mesh.castShadow = false;
         }
         else if (this.currentTarget) {
             const pos = this.mesh.position;
