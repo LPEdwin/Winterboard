@@ -1,4 +1,4 @@
-import type { Mesh, Vector3 } from "three";
+import { Color, type Mesh, type MeshStandardMaterial, type Vector3 } from "three";
 import { toVector3, type NetId, type Vec3 } from "./primitives";
 import type { Team } from "./team";
 import type { Player } from "./player";
@@ -28,7 +28,7 @@ export class Pawn {
 
     update(delta: number) {
         if (this.health <= 0) {
-
+            (this.mesh.material as MeshStandardMaterial).color = new Color(0, 0, 0);
         }
         else if (this.currentTarget) {
             const pos = this.mesh.position;

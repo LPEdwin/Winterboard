@@ -1,11 +1,11 @@
 import { Scene, Mesh, Color, MeshStandardMaterial, BufferGeometry, PlaneGeometry, ShadowMaterial, Material, Vector3 } from "three";
 import { loadGLB } from "../loaders";
 import { type Vec2 } from "./primitives";
+import { Tile } from "./tile";
 
 export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
     const boardSize = 8;
     const tileSize = 1;
-    const tiles: Mesh[] = [];
 
     const evenColor = new Color(0.082, 0.509, 0.690).convertSRGBToLinear();
     const oddColor = new Color(0.286, 0.851, 0.882).convertSRGBToLinear();;
@@ -22,7 +22,7 @@ export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
         color: oddColor
     });
 
-    const tileLookup = new Map<Mesh, Vec2>();
+    const tiles: Tile[] = [];
     const tileSrc = (await loadGLB("/models/box.glb")).children[0] as Mesh;
     const tileGeometry = (tileSrc.geometry as BufferGeometry).clone();
     tileGeometry.computeBoundingBox();
@@ -38,10 +38,9 @@ export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
                 0,
                 (z - boardSize / 2 + 0.5) * tileSize
             );
-            tileLookup.set(tile, { x, y: z });
+            tiles.push(new Tile(tile, { x, y: z }));
             tile.name = `tile_${x}_${z}`;
             scene.add(tile);
-            tiles.push(tile);
         }
     }
 
@@ -54,12 +53,10 @@ export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
     shadowPlane.receiveShadow = true;
     scene.add(shadowPlane);
 
-    return new Board({ x: 8, y: 8 }, tiles, tileLookup);
+    return new Board({ x: 8, y: 8 }, tiles);
 }
 
 export class Board {
-
-    get tiles() { return [...this._tiles]; }
 
     private _bboxSize: Vector3;
     private highlightedTile: Mesh | null = null;
@@ -74,18 +71,13 @@ export class Board {
 
     constructor(
         private _size: Vec2,
-        private _tiles: Mesh[],
-        private _tileLookup: Map<Mesh, Vec2>
+        public tiles: Tile[]
     ) {
-        if (_tiles.length <= 0) {
+        if (tiles.length <= 0) {
             this._bboxSize = new Vector3();
         }
-        const bbox = _tiles[0]!.geometry.boundingBox;
+        const bbox = tiles[0]!.mesh.geometry.boundingBox;
         this._bboxSize = bbox!.max.clone().sub(bbox!.min);
-    }
-
-    getTileIndex(tile: Mesh) {
-        return this._tileLookup.get(tile);
     }
 
     getTile(x: number, y: number): Mesh {
@@ -93,7 +85,7 @@ export class Board {
             throw new Error("Indices aren't intergers");
         if (x < 0 || y < 0 || x >= this._size.x || y >= this._size.y)
             throw new Error('Index out of bounds.');
-        return this.tiles[this._size.x * x + y]!;
+        return this.tiles.filter(t => t.index.x === x && t.index.y === y)[0]!.mesh;
     }
 
     getTileAnchor(x: number, y: number): Vector3 {

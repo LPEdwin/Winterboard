@@ -11,6 +11,7 @@ export class World {
     private readonly scene: Scene;
     private readonly board: Board;
     private pawnsById = new Map<NetId, Pawn>();
+    private pawnsByMeshId = new Map<number, Pawn>;
     private get pawns(): Pawn[] { return [...this.pawnsById.values()]; }
     private teamsById = new Map<NetId, Team>;
     private get teams(): Team[] { return [...this.teamsById.values()]; }
@@ -38,8 +39,8 @@ export class World {
     spawnPawn(pawn: Pawn) {
         pawn.id = getNewNetId(this.pawns.map(x => x.id));
         this.pawnsById.set(pawn.id, pawn);
-        if (pawn.mesh)
-            this.scene.add(pawn.mesh)
+        this.pawnsByMeshId.set(pawn.mesh.id, pawn);
+        this.scene.add(pawn.mesh)
     }
 
     attachServer(server: GameServer) {
@@ -96,6 +97,13 @@ export class World {
     playActionLocal(action: PlayerAction) {
         this.history.push(action);
         switch (action.type) {
+            case 'attack': {
+                this.turnCount++;
+                const id = action.payload.targetId;
+                const target = this.pawnsById.get(id);
+                target!.health -= 30;
+                break;
+            }
             case 'move': {
                 this.turnCount++;
                 const id = action.payload.pawnId;
@@ -131,15 +139,38 @@ export class World {
 
         const raycaster = new Raycaster();
         raycaster.setFromCamera(mouse, camera);
-        const [hit] = raycaster.intersectObjects<Mesh>(this.board.tiles, false);
+
+        let [hit] = raycaster.intersectObjects<Mesh>(this.pawns.map(x => x.mesh), false);
         if (hit) {
-            const tile = hit.object;
-            this.tileSelected(tile);
-            this.board.highlightTile(tile);
+            const pawn = this.pawnsByMeshId.get(hit.object.id)!;
+            this.attack(pawn);
+        }
+        else {
+            [hit] = raycaster.intersectObjects<Mesh>(this.board.tiles.map(x => x.mesh), false);
+            if (hit) {
+                const tile = hit.object;
+                this.moveHeroTo(tile);
+                this.board.highlightTile(tile);
+            }
         }
     }
 
-    private tileSelected(tile: Mesh) {
+    private attack(target: Pawn) {
+        const hero = this.getCurrentHero();
+        if (!hero) {
+            console.log('getCurrentHero returned undefined');
+            return;
+        }
+        const attack = createAction('attack', {
+            turn: this.turnCount,
+            playerId: localPlayer.id,
+            pawnId: hero.id,
+            targetId: target.id
+        });
+        this.playAction(attack);
+    }
+
+    private moveHeroTo(tile: Mesh) {
         const hero = this.getCurrentHero();
         if (!hero) {
             console.log('getCurrentHero returned undefined');
@@ -151,7 +182,7 @@ export class World {
             playerId: localPlayer.id,
             pawnId: hero.id,
             target: targetPosition
-        })
+        });
         this.playAction(move);
     }
 

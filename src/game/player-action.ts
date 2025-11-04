@@ -8,7 +8,7 @@ export type ActionMeta = {
 
 export type Actions = {
     cast: ActionMeta,
-    attack: ActionMeta,
+    attack: ActionMeta & { pawnId: NetId, targetId: NetId },
     move: ActionMeta & { pawnId: NetId, target: Vec3 },
     none: never,
     assign_players: { pairs: { player: Player, teamId: NetId }[] }
