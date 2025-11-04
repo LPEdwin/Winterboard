@@ -44,15 +44,6 @@ export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
         }
     }
 
-    // Shadow receiver
-    const shadowPlane = new Mesh(
-        new PlaneGeometry(boardSize * tileSize, boardSize * tileSize),
-        new ShadowMaterial({ opacity: 0.25 })
-    );
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.receiveShadow = true;
-    scene.add(shadowPlane);
-
     return new Board({ x: 8, y: 8 }, tiles);
 }
 
