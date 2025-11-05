@@ -2,7 +2,7 @@ import { Pawn } from "./pawn";
 import { GameServer } from "./game-server";
 import { createAction, type PlayerAction } from "./player-action";
 import { Board } from "./board";
-import { AxesHelper, Camera, GridHelper, Mesh, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
+import { AxesHelper, Camera, GridHelper, Mesh, Object3D, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
 import { getNewNetId, type NetId, } from "./primitives";
 import { localPlayer } from "./player";
 import type { Team } from "./team";
@@ -25,8 +25,8 @@ export class World {
         this.scene = scene;
         this.board = board;
 
-        scene.add(new AxesHelper(2));   // X=red, Y=green, Z=blue
-        scene.add(new GridHelper(10, 10));
+        // scene.add(new AxesHelper(2));   // X=red, Y=green, Z=blue
+        // scene.add(new GridHelper(10, 10));
     }
 
     spawnTeam(team: Team) {
@@ -101,7 +101,7 @@ export class World {
                 this.turnCount++;
                 const id = action.payload.targetId;
                 const target = this.pawnsById.get(id);
-                target!.health -= 30;
+                target!.applyDamage(30);
                 break;
             }
             case 'move': {
@@ -140,10 +140,19 @@ export class World {
         const raycaster = new Raycaster();
         raycaster.setFromCamera(mouse, camera);
 
-        let [hit] = raycaster.intersectObjects<Mesh>(this.pawns.map(x => x.mesh), false);
+        let [hit] = raycaster.intersectObjects<Mesh>(this.pawns.map(x => x.mesh), true);
         if (hit) {
-            const pawn = this.pawnsByMeshId.get(hit.object.id)!;
-            this.attack(pawn);
+            let obj: Object3D | null = hit.object;
+            while (obj) {
+                const pawn = this.pawnsByMeshId.get(obj.id);
+                if (pawn) {
+                    this.attack(pawn);
+                    break;
+                }
+                else {
+                    obj = obj.parent;
+                }
+            }
         }
         else {
             [hit] = raycaster.intersectObjects<Mesh>(this.board.tiles.map(x => x.mesh), false);

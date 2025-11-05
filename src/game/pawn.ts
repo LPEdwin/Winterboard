@@ -1,22 +1,24 @@
-import { Color, type Mesh, type MeshStandardMaterial, type Vector3 } from "three";
+import { type Vector3, Object3D } from "three";
 import { toVector3, type NetId, type Vec3 } from "./primitives";
 import type { Team } from "./team";
 import type { Player } from "./player";
 import { Fader } from "./fader";
+import type { HealthComponent } from "./health.component";
 
 
 export class Pawn {
     id: NetId = -1;
-    health: number = 100;
+    get health(): number { return this.hpComp.health };
     team?: Team;
     name?: string;
-    mesh: Mesh;
+    mesh: Object3D;
     moveSpeed: number = 1.0;
     currentTarget: Vector3 | null = null;
+    hpComp!: HealthComponent;
 
-    private fader: Fader | undefined;
+    private deathFader: Fader | undefined;
 
-    constructor(name: string, mesh: Mesh) {
+    constructor(name: string, mesh: Object3D) {
         this.name = name;
         this.mesh = mesh;
     }
@@ -29,10 +31,14 @@ export class Pawn {
         this.currentTarget = toVector3(position);
     }
 
+    applyDamage(amount: number) {
+        this.hpComp.health -= amount;
+    }
+
     update(delta: number) {
         if (this.health <= 0) {
-            (this.fader ??= new Fader(this.mesh, 1)).update(delta);
-            this.mesh.castShadow = false;
+            (this.deathFader ??= new Fader(this.mesh, 1)).update(delta);
+            this.mesh.traverse(o => o.castShadow = false)
         }
         else if (this.currentTarget) {
             const pos = this.mesh.position;
@@ -46,6 +52,8 @@ export class Pawn {
                 this.mesh.position.lerp(this.currentTarget, step / dist);
             }
         }
+
+        this.hpComp.update();
     }
 
     getController(): Player | undefined {
