@@ -1,5 +1,3 @@
-import type { Scene } from "three";
-import { create8x8BoardAsync } from "./board";
 import {
     createScarAsync,
     createHadesAsync,
@@ -12,9 +10,8 @@ import { World } from "./world";
 import { localPlayer } from "./player";
 import { Team } from "./team";
 
-export async function createLevelAsync(scene: Scene, playerCount: number = 1): Promise<World> {
-    const board = await create8x8BoardAsync(scene);
-    const world = new World(scene, board);
+export async function spawnHeroesAsync(world: World, playerCount: number = 1): Promise<void> {
+    const board = world.board;
 
     const teamA = new Team([
         await createScarAsync(),
@@ -43,6 +40,4 @@ export async function createLevelAsync(scene: Scene, playerCount: number = 1): P
 
     world.spawnTeam(teamA);
     world.spawnTeam(teamB);
-
-    return world;
 }

@@ -1,4 +1,4 @@
-import { Scene, Mesh, Color, MeshStandardMaterial, BufferGeometry, PlaneGeometry, ShadowMaterial, Material, Vector3 } from "three";
+import { Scene, Mesh, Color, MeshStandardMaterial, BufferGeometry, Material, Vector3, Object3D } from "three";
 import { loadGLB } from "../loaders";
 import { type Vec2 } from "./primitives";
 import { Tile } from "./tile";
@@ -82,6 +82,10 @@ export class Board {
     getTileAnchor(x: number, y: number): Vector3 {
         const tile = this.getTile(x, y);
         return tile.position.clone();
+    }
+
+    getTileByMesh(obj: Object3D): Tile | undefined {
+        return this.tiles.filter(x => x.mesh === obj)[0];
     }
 
     highlightTile(tile: Mesh | null) {

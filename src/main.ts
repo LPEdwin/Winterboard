@@ -8,12 +8,14 @@ import {
 } from "./game/scene-elements";
 import { Clock, DefaultLoadingManager, PCFSoftShadowMap, Scene, SRGBColorSpace, WebGLRenderer } from "three";
 import { renderFps } from "./game/fps-overlay";
-import { createLevelAsync } from "./game/level";
+import { spawnHeroesAsync } from "./game/level";
 import { GameServer } from "./game/game-server";
 import { getNewHashId } from "./game/primitives";
 import { LOCAL_PEER_SERVER_CONFIG } from "./environment.dev";
 import { localPlayer } from "./game/player";
 import GUI from 'lil-gui';
+import { World } from "./game/world";
+import { create8x8BoardAsync } from "./game/board";
 
 // Required for Github Pages deployment
 DefaultLoadingManager.setURLModifier((url) => {
@@ -97,9 +99,10 @@ async function init() {
 
     await createBackground(scene, renderer);
     await createLightsAsync(scene, renderer);
-
-    const world = await createLevelAsync(scene, settings.singlePlayer ? 1 : 2);
-    window.addEventListener("pointerdown", event => world.handlePointerEvent(event, camera, renderer));
+    const board = await create8x8BoardAsync(scene);
+    const world = new World(scene, renderer, camera, board);
+    await spawnHeroesAsync(world, settings.singlePlayer ? 1 : 2);
+    window.addEventListener("pointerdown", event => world.handlePointerEvent(event));
 
     if (!settings.singlePlayer) {
         const config = settings.useLocalServer ? LOCAL_PEER_SERVER_CONFIG : undefined;

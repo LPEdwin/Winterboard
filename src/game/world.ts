@@ -6,10 +6,9 @@ import { AxesHelper, Camera, GridHelper, Mesh, Object3D, Raycaster, Scene, Vecto
 import { getNewNetId, type NetId, } from "./primitives";
 import { localPlayer } from "./player";
 import type { Team } from "./team";
+import type { Tile } from "./tile";
 
 export class World {
-    private readonly scene: Scene;
-    private readonly board: Board;
     private pawnsById = new Map<NetId, Pawn>();
     private pawnsByMeshId = new Map<number, Pawn>;
     private get pawns(): Pawn[] { return [...this.pawnsById.values()]; }
@@ -21,10 +20,12 @@ export class World {
 
     private turnCount: number = 0;
 
-    constructor(scene: Scene, board: Board) {
-        this.scene = scene;
-        this.board = board;
-
+    constructor(
+        public scene: Scene,
+        public renderer: WebGLRenderer,
+        public camera: Camera,
+        public board: Board
+    ) {
         // scene.add(new AxesHelper(2));   // X=red, Y=green, Z=blue
         // scene.add(new GridHelper(10, 10));
     }
@@ -126,42 +127,72 @@ export class World {
         }
     }
 
-    handlePointerEvent(event: PointerEvent, camera: Camera, renderer: WebGLRenderer) {
+    handlePointerEvent(event: PointerEvent) {
 
         if (event.button != 0 || !this.canHandleInput())
             return;
 
-        const rect = renderer.domElement.getBoundingClientRect();
+        let pawn = this.intersectPawns(event);
+        if (pawn) {
+            this.attack(pawn);
+            return;
+        }
+
+        let tile = this.intersecTiles(event);
+        if (tile) {
+            this.moveHeroTo(tile.mesh);
+            this.board.highlightTile(tile.mesh);
+            return;
+        }
+    }
+
+    private getRaycasterFromEvent(event: PointerEvent): Raycaster {
+        const rect = this.renderer.domElement.getBoundingClientRect();
         const mouse = new Vector2(
             ((event.clientX - rect.left) / rect.width) * 2 - 1,
             -((event.clientY - rect.top) / rect.height) * 2 + 1
         );
 
         const raycaster = new Raycaster();
-        raycaster.setFromCamera(mouse, camera);
+        raycaster.setFromCamera(mouse, this.camera);
+        return raycaster;
+    }
 
-        let [hit] = raycaster.intersectObjects<Mesh>(this.pawns.map(x => x.mesh), true);
-        if (hit) {
-            let obj: Object3D | null = hit.object;
-            while (obj) {
-                const pawn = this.pawnsByMeshId.get(obj.id);
-                if (pawn) {
-                    this.attack(pawn);
-                    break;
-                }
-                else {
-                    obj = obj.parent;
-                }
-            }
+    private intersectAndResolve<T>(
+        event: PointerEvent,
+        objects: Object3D[],
+        recursive: boolean,
+        resolve: (obj: Object3D) => T | undefined
+    ): T | undefined {
+        const raycaster = this.getRaycasterFromEvent(event);
+        const [hit] = raycaster.intersectObjects(objects, recursive);
+        if (!hit) return;
+
+        let obj: Object3D | null = hit.object;
+        while (obj) {
+            const found = resolve(obj);
+            if (found) return found;
+            obj = obj.parent;
         }
-        else {
-            [hit] = raycaster.intersectObjects<Mesh>(this.board.tiles.map(x => x.mesh), false);
-            if (hit) {
-                const tile = hit.object;
-                this.moveHeroTo(tile);
-                this.board.highlightTile(tile);
-            }
-        }
+        return;
+    }
+
+    private intersecTiles(event: PointerEvent): Tile | undefined {
+        return this.intersectAndResolve(
+            event,
+            this.board.tiles.map(t => t.mesh),
+            false,
+            obj => this.board.getTileByMesh(obj)
+        );
+    }
+
+    private intersectPawns(event: PointerEvent): Pawn | undefined {
+        return this.intersectAndResolve(
+            event,
+            this.pawns.map(p => p.mesh),
+            true,
+            obj => this.pawnsByMeshId.get(obj.id)
+        );
     }
 
     private attack(target: Pawn) {
