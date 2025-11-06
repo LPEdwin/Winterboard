@@ -87,7 +87,7 @@ async function init() {
     const scene = new Scene();
     const camera = createCamera(w, h);
     const controls = createControls(camera, renderer);
-    let composer = !isMobile() ?
+    let composer = isMobile() ?
         undefined :
         createGlowEffect(scene, camera, renderer)
 

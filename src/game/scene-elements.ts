@@ -7,7 +7,8 @@ import {
     SRGBColorSpace,
     TextureLoader,
     Vector2,
-    WebGLRenderer
+    WebGLRenderer,
+    WebGLRenderTarget
 } from "three";
 import { EffectComposer, HDRLoader, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -58,16 +59,23 @@ export async function createBackground(scene: Scene, renderer: WebGLRenderer): P
 export function createGlowEffect(scene: Scene, camera: Camera, renderer: WebGLRenderer)
     : EffectComposer {
 
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
+    const w = renderer.domElement.clientWidth;
+    const h = renderer.domElement.clientHeight;
 
     const bloom = new UnrealBloomPass(
-        new Vector2(renderer.domElement.clientWidth, renderer.domElement.clientHeight),
+        new Vector2(w, h),
                 /*strength*/1.2,
                 /*radius*/0.4,
                 /*threshold*/0.85
     );
 
+    const rt = new WebGLRenderTarget(w, h, {
+        samples: Math.min(4, renderer.capabilities.maxSamples)
+    });
+
+    const composer = new EffectComposer(renderer, rt);
+    composer.addPass(new RenderPass(scene, camera));
     composer.addPass(bloom);
+
     return composer;
 }
