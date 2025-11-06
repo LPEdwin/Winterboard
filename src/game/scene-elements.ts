@@ -13,10 +13,10 @@ import { EffectComposer, HDRLoader, RenderPass, UnrealBloomPass } from "three/ex
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildPrefilteredRadianceMap } from "../loaders";
 
-export function createCamera(): PerspectiveCamera {
+export function createCamera(pixel_width: number, pixel_height: number): PerspectiveCamera {
     const camera = new PerspectiveCamera(
         45,
-        window.innerWidth / window.innerHeight,
+        pixel_width / pixel_height,
         0.1,
         1000
     );
@@ -62,7 +62,7 @@ export function createGlowEffect(scene: Scene, camera: Camera, renderer: WebGLRe
     composer.addPass(new RenderPass(scene, camera));
 
     const bloom = new UnrealBloomPass(
-        new Vector2(window.innerWidth, window.innerHeight),
+        new Vector2(renderer.domElement.clientWidth, renderer.domElement.clientHeight),
                 /*strength*/1.2,
                 /*radius*/0.4,
                 /*threshold*/0.85

@@ -75,7 +75,9 @@ const renderer = new WebGLRenderer({
 });
 
 renderer.setPixelRatio(1.0);
-renderer.setSize(window.innerWidth, window.innerHeight);
+const w = canvas.clientWidth;
+const h = canvas.clientHeight;
+renderer.setSize(w, h);
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFSoftShadowMap;
@@ -83,18 +85,19 @@ renderer.shadowMap.type = PCFSoftShadowMap;
 // === Scene setup ===
 async function init() {
     const scene = new Scene();
-    const camera = createCamera();
+    const camera = createCamera(w, h);
     const controls = createControls(camera, renderer);
-    let composer = isMobile() ?
+    let composer = !isMobile() ?
         undefined :
         createGlowEffect(scene, camera, renderer)
 
     window.addEventListener("resize", () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
+        let w = canvas.clientWidth;
+        let h = canvas.clientHeight;
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        if (composer)
-            composer = createGlowEffect(scene, camera, renderer);
+        renderer.setSize(w, h);
+        composer?.setSize(w, h);
     });
 
     await createBackground(scene, renderer);
