@@ -2,6 +2,7 @@ import { Scene, Mesh, Color, MeshStandardMaterial, BufferGeometry, Material, Vec
 import { loadGLB } from "../loaders";
 import { type Vec2 } from "./primitives";
 import { Tile } from "./tile";
+import { BloomManager } from "./bloom-manager";
 
 export async function create8x8BoardAsync(scene: Scene): Promise<Board> {
     const boardSize = 8;
@@ -91,8 +92,10 @@ export class Board {
     highlightTile(tile: Mesh | null) {
         if (this.highlightedTile) {
             this.highlightedTile.material = this.restoreMaterial!;
+            this.highlightedTile.layers.toggle(BloomManager.BLOOM_LAYER_ID);
         }
         if (!tile) {
+            this.highlightedTile?.layers.toggle(BloomManager.BLOOM_LAYER_ID);
             this.highlightedTile = null;
             this.restoreMaterial = null;
             return;
@@ -100,5 +103,6 @@ export class Board {
         this.highlightedTile = tile;
         this.restoreMaterial = tile.material;
         this.highlightedTile.material = this.highlighMaterial;
+        this.highlightedTile.layers.toggle(BloomManager.BLOOM_LAYER_ID);
     }
 }
