@@ -1,4 +1,14 @@
-import { Mesh, MeshStandardMaterial, TextureLoader, SRGBColorSpace, PlaneGeometry, MeshBasicMaterial, DoubleSide, Group, type ColorRepresentation, Object3D, Box3 } from "three";
+import {
+    Mesh,
+    MeshStandardMaterial,
+    TextureLoader,
+    SRGBColorSpace,
+    PlaneGeometry,
+    MeshBasicMaterial,
+    DoubleSide,
+    Group,
+    type ColorRepresentation
+} from "three";
 import { loadGLB } from "../loaders";
 import { Pawn } from "./pawn";
 import { HealthComponent } from "./health.component";
