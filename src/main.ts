@@ -10,8 +10,7 @@ import {
     createCamera,
     createControls,
     createBackground,
-    createLightsAsync,
-    createGlowEffect
+    createLightsAsync
 } from "./game/scene-elements";
 import {
     Clock,
@@ -35,6 +34,8 @@ import { localPlayer } from "./game/player";
 import GUI from 'lil-gui';
 import { World } from "./game/world";
 import { create8x8BoardAsync } from "./game/board";
+import { EffectComposer, OutputPass, RenderPass, ShaderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { BloomManager } from "./game/bloom-manager";
 
 // Required for Github Pages deployment
 DefaultLoadingManager.setURLModifier((url) => {
@@ -106,9 +107,47 @@ async function init() {
     const scene = new Scene();
     const camera = createCamera(w, h);
     const controls = createControls(camera, renderer);
-    let composer = isMobile() ?
-        undefined :
-        createGlowEffect(scene, camera, renderer)
+
+    const bloomStrength = 0.6;
+    const bloomTarget = new WebGLRenderTarget(w, h, {
+        samples: Math.min(4, renderer.capabilities.maxSamples),
+        type: HalfFloatType
+    });
+    const bloomComposer = new EffectComposer(renderer, bloomTarget);
+    bloomComposer.renderToScreen = false;
+    bloomComposer.addPass(new RenderPass(scene, camera));
+    bloomComposer.addPass(new UnrealBloomPass(new Vector2(w, h), bloomStrength, 0.4, 0.85));
+
+    const renderTarget = new WebGLRenderTarget(w, h, {
+        samples: Math.min(4, renderer.capabilities.maxSamples),
+        type: HalfFloatType
+    });
+    const finalComposer = new EffectComposer(renderer, renderTarget);
+    const addBloomPass = new ShaderPass(new ShaderMaterial({
+        uniforms: {
+            baseTexture: { value: null }, // set by ShaderPass
+            bloomTexture: { value: bloomComposer.renderTarget2.texture },
+            bloomStrength: { value: bloomStrength }
+        },
+        vertexShader: `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = vec4(position,1.0); }
+      `,
+        fragmentShader: `
+        uniform sampler2D baseTexture, bloomTexture;
+        uniform float bloomStrength;
+        varying vec2 vUv;
+        void main() {
+          vec4 base  = texture2D(baseTexture, vUv);
+          vec4 bloom = texture2D(bloomTexture, vUv);
+          gl_FragColor = base + bloom * bloomStrength;
+        }
+      `
+    }), 'baseTexture');
+
+    finalComposer.addPass(new RenderPass(scene, camera));
+    finalComposer.addPass(addBloomPass);
+    finalComposer.addPass(new OutputPass());
 
     window.addEventListener("resize", () => {
         let w = canvas.clientWidth;
@@ -116,7 +155,8 @@ async function init() {
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
-        composer?.setSize(w, h);
+        bloomComposer?.setSize(w, h);
+        finalComposer?.setSize(w, h);
     });
 
     await createBackground(scene, renderer);
@@ -138,17 +178,18 @@ async function init() {
     }
 
     const clock = new Clock();
-
+    const bloomManager = new BloomManager(scene);
     function Update() {
         const delta = clock.getDelta();
         world.update(delta)
         controls.update();
-        if (composer) {
-            composer.render();
-        }
-        else {
-            renderer.render(scene, camera);
-        }
+
+        bloomManager.overrideMaterialsToBlack();
+        bloomComposer.render();
+        bloomManager.restoreMaterials();
+
+        finalComposer.render();
+
         renderFps(delta);
 
         requestAnimationFrame(Update);

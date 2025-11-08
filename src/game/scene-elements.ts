@@ -6,11 +6,9 @@ import {
     Scene,
     SRGBColorSpace,
     TextureLoader,
-    Vector2,
     WebGLRenderer,
-    WebGLRenderTarget
 } from "three";
-import { EffectComposer, HDRLoader, RenderPass, UnrealBloomPass } from "three/examples/jsm/Addons.js";
+import { HDRLoader } from "three/examples/jsm/Addons.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildPrefilteredRadianceMap } from "../loaders";
 
@@ -54,28 +52,4 @@ export async function createBackground(scene: Scene, renderer: WebGLRenderer): P
     const backgroundMap = await new TextureLoader().loadAsync('/hdri/rich_multi_nebulae_2k.png');
     backgroundMap.colorSpace = SRGBColorSpace;
     scene.background = (await buildPrefilteredRadianceMap(backgroundMap, renderer)).texture;
-}
-
-export function createGlowEffect(scene: Scene, camera: Camera, renderer: WebGLRenderer)
-    : EffectComposer {
-
-    const w = renderer.domElement.clientWidth;
-    const h = renderer.domElement.clientHeight;
-
-    const bloom = new UnrealBloomPass(
-        new Vector2(w, h),
-                /*strength*/1.2,
-                /*radius*/0.4,
-                /*threshold*/0.85
-    );
-
-    const rt = new WebGLRenderTarget(w, h, {
-        samples: Math.min(4, renderer.capabilities.maxSamples)
-    });
-
-    const composer = new EffectComposer(renderer, rt);
-    composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(bloom);
-
-    return composer;
 }
