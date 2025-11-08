@@ -10,6 +10,7 @@ export class HealthComponent {
 
     private constructor(
         private hpForeground: Mesh,
+        private hpForeground2: Mesh,
         private hpBackground: Mesh
     ) { }
 
@@ -21,18 +22,21 @@ export class HealthComponent {
         const h = 0.07;;
 
         const bgGeom = new PlaneGeometry(w + 0.06, h + 0.06);
-        const bgMat = new MeshBasicMaterial({ color: 0xffffff, side: DoubleSide, depthWrite: false });
+        const bgMat = new MeshBasicMaterial({ color: 0xffffff, side: DoubleSide, depthWrite: true, depthTest: true });
         const hpBackground = new Mesh(bgGeom, bgMat);
 
         const fgGeom = new PlaneGeometry(w, h);
-        const fgMat = new MeshBasicMaterial({ color: 0xff0000, side: DoubleSide, depthWrite: false });
+        const fgMat = new MeshBasicMaterial({ color: 0xff0000, side: DoubleSide, depthWrite: true, depthTest: true });
         const hpForeground = new Mesh(fgGeom, fgMat);
+        const hpForeground2 = new Mesh(fgGeom.clone(), fgMat);
 
         hpBackground.position.set(0, 0, 0.001);
         hpForeground.position.set(0, 0, 0.002);
+        hpForeground2.position.set(0, 0, -0.002);
 
         hpBarGroup.add(hpBackground);
         hpBarGroup.add(hpForeground);
+        hpBarGroup.add(hpForeground2);
 
         let yOffset = 1.0;
         // handle both Mesh and Group: compute bounding box from the whole Object3D
@@ -46,16 +50,18 @@ export class HealthComponent {
 
         mesh.add(hpBarGroup);
 
-        pawn.hpComp = new HealthComponent(hpForeground, hpBackground);
+        pawn.hpComp = new HealthComponent(hpForeground, hpForeground2, hpBackground);
     }
 
     update() {
         const pct = Math.max(0, Math.min(1, this.health / 100));
         this.hpForeground.scale.x = pct;
+        this.hpForeground2.scale.x = pct;
 
         // Because scaling occurs around the geometry center, offset the foreground so it appears to shrink from right to left
         // When pct = 1 -> offset = 0; when pct = 0 -> offset = -width/2
         const offsetX = -(this.width * (1 - pct)) / 2;
         this.hpForeground.position.x = offsetX;
+        this.hpForeground2.position.x = offsetX;
     }
 }
