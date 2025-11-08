@@ -1,4 +1,11 @@
-import { getHostFromUrl, getRole, isClient, isHost, isMobile, useLocalServer } from "./device";
+import {
+    getHostFromUrl,
+    getRole,
+    isClient,
+    isHost,
+    isMobile,
+    useLocalServer
+} from "./device";
 import {
     createCamera,
     createControls,
@@ -6,7 +13,19 @@ import {
     createLightsAsync,
     createGlowEffect
 } from "./game/scene-elements";
-import { Clock, DefaultLoadingManager, PCFSoftShadowMap, Scene, SRGBColorSpace, WebGLRenderer } from "three";
+import {
+    Clock,
+    DefaultLoadingManager,
+    HalfFloatType,
+    NeutralToneMapping,
+    PCFSoftShadowMap,
+    Scene,
+    ShaderMaterial,
+    SRGBColorSpace,
+    Vector2,
+    WebGLRenderer,
+    WebGLRenderTarget
+} from "three";
 import { renderFps } from "./game/fps-overlay";
 import { spawnHeroesAsync } from "./game/level";
 import { GameServer } from "./game/game-server";
