@@ -1,4 +1,4 @@
-import { Mesh, Group, PlaneGeometry, MeshBasicMaterial, Box3 } from "three";
+import { Mesh, Group, PlaneGeometry, MeshBasicMaterial, Box3, DoubleSide } from "three";
 import type { Pawn } from "./pawn";
 
 export class HealthComponent {
@@ -21,11 +21,11 @@ export class HealthComponent {
         const h = 0.07;;
 
         const bgGeom = new PlaneGeometry(w + 0.06, h + 0.06);
-        const bgMat = new MeshBasicMaterial({ color: 0xffffff, depthWrite: false });
+        const bgMat = new MeshBasicMaterial({ color: 0xffffff, side: DoubleSide, depthWrite: false });
         const hpBackground = new Mesh(bgGeom, bgMat);
 
         const fgGeom = new PlaneGeometry(w, h);
-        const fgMat = new MeshBasicMaterial({ color: 0xff0000, depthWrite: false });
+        const fgMat = new MeshBasicMaterial({ color: 0xff0000, side: DoubleSide, depthWrite: false });
         const hpForeground = new Mesh(fgGeom, fgMat);
 
         hpBackground.position.set(0, 0, 0.001);
